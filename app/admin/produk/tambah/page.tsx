@@ -160,8 +160,8 @@ export default function TambahProdukPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] font-sans text-black">
-      <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden rounded-lg mx-4 my-2 shadow-sm">
+    <div className="flex flex-col h-screen] font-sans text-black">
+      <div className="flex flex-col flex-1 bg-white border border-gray-100 overflow-hidden rounded-lg  shadow-sm">
         
         {/* HEADER */}
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">

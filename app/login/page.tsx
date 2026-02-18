@@ -1,69 +1,52 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Lock, User, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState('') // Email atau Username murni
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const router = useRouter()
 
-  // CEK SESSION: Kalau sudah login, langsung lempar ke admin
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        router.push('/admin/produk')
-      }
-    }
-    checkUser()
-  }, [router])
-
-  const handleLogin = async (e: React.FormEvent) => {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
 
     try {
-      // Langsung gunakan identifier apa adanya (Email atau Username yang didaftarkan)
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: identifier, 
+        email: identifier,
         password: password,
       })
 
-      if (error) {
-        setLoading(false)
-        setErrorMsg(error.message === 'Invalid login credentials' 
-          ? 'Akun atau Password salah!' 
-          : error.message)
-        return
-      }
+      if (error) throw error
 
       if (data.user) {
-        // Hard redirect untuk memastikan Middleware membaca cookie terbaru
-        window.location.href = '/admin/produk'
+        router.push('/admin')
+        router.refresh()
       }
-    } catch (err) {
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Gagal masuk. Periksa email dan password Anda.')
+    } finally {
       setLoading(false)
-      setErrorMsg('Terjadi kesalahan koneksi ke server.')
     }
   }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center p-4 font-sans text-gray-900">
-      <div className="w-full max-w-md bg-white rounded-[40px] p-8 md:p-12 border border-gray-100 shadow-2xl shadow-black/5">
+      <div className="w-full max-w-md bg-white rounded-xl p-8 md:p-12 border border-gray-100 shadow-2xl shadow-black/5">
         
         <div className="text-center mb-10">
           <div className="w-16 h-16 bg-black rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-xl shadow-black/10">
-              <Lock className="text-white" size={28} />
+            <Lock className="text-white" size={28} />
           </div>
           <h1 className="text-3xl font-black italic tracking-tighter uppercase">HnM Store</h1>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[3px] mt-2">Admin Access</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[3px] mt-2">Dashboard HnM Store</p>
         </div>
 
         {errorMsg && (
@@ -73,22 +56,20 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {/* IDENTIFIER INPUT */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Username / Email</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Email</label>
             <div className="relative group">
               <User className="absolute left-5 top-4 text-gray-300 group-focus-within:text-black transition-colors" size={18} />
               <input 
-                type="text" 
+                type="email" 
                 required 
-                placeholder="Masukkan ID Admin"
+                placeholder="email@contoh.com"
                 className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl outline-none focus:bg-white focus:border-black transition-all font-bold text-sm"
                 onChange={(e) => setIdentifier(e.target.value)}
               />
             </div>
           </div>
 
-          {/* PASSWORD INPUT */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Password</label>
             <div className="relative group">
@@ -112,7 +93,7 @@ export default function LoginPage() {
 
           <button 
             disabled={loading}
-            className="w-full py-5 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-[2px] shadow-xl hover:bg-zinc-800 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:bg-gray-400"
+            className="w-full py-5 bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-xl hover:bg-zinc-800 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:bg-gray-400"
           >
             {loading ? (
               <>
@@ -123,7 +104,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center mt-10 text-[9px] font-bold text-gray-300 uppercase tracking-widest">
+        <p className="text-center mt-10 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
           HnM Store System © 2026
         </p>
       </div>

@@ -91,7 +91,7 @@ export default function AdminBrandPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] font-sans text-black">
-      <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden rounded-xl mx-4 my-2">
+      <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden rounded-xl">
         
         {/* HEADER: Selaras sama Media Manager */}
         <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-30 space-y-4">

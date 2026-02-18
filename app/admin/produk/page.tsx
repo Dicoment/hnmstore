@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Plus, Search, Edit3, Trash2, Eye, Loader2, X, Save } from 'lucide-react'
+import { 
+  Plus, Search, Edit3, Trash2, Eye, Loader2, X, Save, 
+  CheckSquare, Square, CheckCircle2 
+} from 'lucide-react'
 
 // --- DEFINISI INTERFACE ---
 interface Size { id: string; value: string }
@@ -46,6 +49,10 @@ export default function InventoryHnMStore() {
   const [filterBrand, setFilterBrand] = useState('all')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
+  // State baru untuk Bulk Selection
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false)
+
   useEffect(() => {
     fetchInitialData()
     const channel = supabase
@@ -76,7 +83,6 @@ export default function InventoryHnMStore() {
         supabase.from('Size').select('*').order('value', { ascending: true })
       ])
 
-      // --- FIX: LOGIC MAPPING GAMBAR (AGAR MUNCUL) ---
       const productsWithUrls = (p.data as Product[])?.map(product => ({
         ...product,
         images: product.images?.map(img => 
@@ -93,6 +99,38 @@ export default function InventoryHnMStore() {
     }
   }
 
+  // LOGIC SELEKSI BULK
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === displayProducts.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(displayProducts.map(p => p.id))
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Hapus ${selectedIds.length} produk terpilih secara permanen?`)) return
+    setIsDeletingBulk(true)
+    try {
+      const { error } = await supabase.from('Product').delete().in('id', selectedIds)
+      if (error) throw error
+      setSelectedIds([])
+      alert('Produk berhasil dibersihkan!')
+      fetchInitialData()
+    } catch (err: any) {
+      alert("Gagal hapus massal: " + err.message)
+    } finally {
+      setIsDeletingBulk(false)
+    }
+  }
+
+  // --- LOGIC BAWAAN LO (GAK DIUBAH) ---
   const handleAddSizeRow = () => {
     if (!selectedProduct) return
     const firstSize = sizes[0]
@@ -185,17 +223,32 @@ export default function InventoryHnMStore() {
 
   return (
     <div className="flex flex-col lg:flex-row h-screen lg:overflow-hidden font-sans gap-6 bg-gray-50/50">
-      <div className="flex flex-col flex-1 h-screen bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex flex-col flex-1 h-screen bg-white rounded-xl border border-gray-100  overflow-hidden">
+        
         {/* Header Section */}
         <div className="p-4 md:p-8 border-b border-gray-50 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-xl md:text-3xl font-black italic tracking-tighter text-gray-900 leading-tight uppercase">SEMUA PRODUK</h1>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 text-black/40">Real-time Stock Management</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Inventory Management</p>
             </div>
-            <Link href="/admin/produk/tambah" className="w-full md:w-auto bg-black text-white px-6 py-3 rounded-2xl text-xs font-black shadow-xl text-center transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-              <Plus size={16} /> TAMBAH PRODUK
-            </Link>
+            
+            <div className="flex gap-2 w-full md:w-auto">
+              {/* TOMBOL BULK DELETE ALA WORDPRESS */}
+              {selectedIds.length > 0 && (
+                <button 
+                  onClick={handleBulkDelete}
+                  disabled={isDeletingBulk}
+                  className="flex-1 md:flex-none bg-red-600 text-white px-6 py-3 rounded-2xl text-xs font-black shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  {isDeletingBulk ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                  HAPUS ({selectedIds.length})
+                </button>
+              )}
+              <Link href="/admin/produk/tambah" className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl text-xs font-black shadow-xl text-center transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                <Plus size={16} /> TAMBAH PRODUK
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-3">
@@ -222,51 +275,63 @@ export default function InventoryHnMStore() {
             <div className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-black" /></div>
           ) : (
             <>
-              {/* DESKTOP VIEW (TABLE) */}
               <table className="hidden lg:table w-full text-left">
                 <thead className="sticky top-0 bg-white z-10 text-[10px] font-black text-gray-400 uppercase tracking-[2px] border-b">
                   <tr>
-                    <th className="px-10 py-6 text-black/40">Product Details</th>
+                    <th className="pl-10 py-6 w-10">
+                      <button onClick={toggleSelectAll} className="text-gray-300 hover:text-black transition-colors">
+                        {selectedIds.length === displayProducts.length && displayProducts.length > 0 ? <CheckSquare size={20} className="text-black" /> : <Square size={20} />}
+                      </button>
+                    </th>
+                    <th className="px-6 py-6 text-black/40">Product Details</th>
                     <th className="px-10 py-6">Sizes & Stock</th>
                     <th className="px-10 py-6">Price</th>
                     <th className="px-10 py-6 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {displayProducts.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50/50 transition-all group">
-                      <td className="px-10 py-6">
-                        <div className="flex items-center gap-5">
-                          <div className="w-14 h-14 relative rounded-[20px] overflow-hidden bg-gray-50 border shadow-sm shrink-0">
-                            <Image src={p.images?.[0] || '/placeholder.png'} alt={p.name} fill className="object-cover" unoptimized />
-                          </div>
-                          <div className="min-w-0 text-black">
-                            <p className="text-base font-black tracking-tight leading-tight truncate uppercase">{p.name}</p>
-                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{p.Brand?.name} • {p.Model?.name}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-10 py-6">
-                        <div className="flex text-black flex-wrap gap-2 max-w-[220px]">
-                          {p.ProductSizeStock?.map((s, i) => (
-                            <div key={i} className="bg-gray-50 px-2.5 py-1.5 border border-gray-200 rounded-lg text-[12px] font-black">
-                              {s.Size?.value}: <span className={s.stock < 5 ? 'text-red-500' : 'text-gray-900'}>{s.stock}</span>
+                  {displayProducts.map((p) => {
+                    const isSelected = selectedIds.includes(p.id)
+                    return (
+                      <tr key={p.id} className={`transition-all group ${isSelected ? 'bg-gray-50' : 'hover:bg-gray-50/30'}`}>
+                        <td className="pl-10 py-6">
+                          <button onClick={() => toggleSelect(p.id)} className="transition-colors">
+                            {isSelected ? <CheckCircle2 size={20} className="text-black" /> : <Square size={20} className="text-gray-200 group-hover:text-gray-300" />}
+                          </button>
+                        </td>
+                        <td className="px-6 py-6">
+                          <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 relative rounded-[20px] overflow-hidden bg-gray-50 border shadow-sm shrink-0">
+                              <Image src={p.images?.[0] || '/placeholder.png'} alt={p.name} fill className="object-cover" unoptimized />
                             </div>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-10 py-6 font-black text-sm text-black">
-                        Rp {p.price_regular?.toLocaleString()}
-                      </td>
-                      <td className="px-10 py-6">
-                        <div className="flex justify-center gap-3 text-black">
-                          <Link href={`/produk/${p.slug}`} target="_blank" className="p-3 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all"><Eye size={16} /></Link>
-                          <button onClick={() => setSelectedProduct(p)} className="p-3 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all"><Edit3 size={16} /></button>
-                          <button onClick={() => handleDelete(p.id)} className="p-3 bg-red-50 hover:bg-red-500 hover:text-white text-red-400 rounded-2xl transition-all"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <div className="min-w-0 text-black">
+                              <p className="text-base font-black tracking-tight leading-tight truncate uppercase">{p.name}</p>
+                              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{p.Brand?.name} • {p.Model?.name}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex text-black flex-wrap gap-2 max-w-[220px]">
+                            {p.ProductSizeStock?.map((s, i) => (
+                              <div key={i} className="bg-gray-50 px-2.5 py-1.5 border border-gray-200 rounded-lg text-[12px] font-black">
+                                {s.Size?.value}: <span className={s.stock < 5 ? 'text-red-500' : 'text-gray-900'}>{s.stock}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-10 py-6 font-black text-sm text-black">
+                          Rp {p.price_regular?.toLocaleString()}
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex justify-center gap-3 text-black">
+                            <Link href={`/produk/${p.slug}`} target="_blank" className="p-3 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all"><Eye size={16} /></Link>
+                            <button onClick={() => setSelectedProduct(p)} className="p-3 bg-gray-50 hover:bg-black hover:text-white rounded-2xl transition-all"><Edit3 size={16} /></button>
+                            <button onClick={() => handleDelete(p.id)} className="p-3 bg-red-50 hover:bg-red-500 hover:text-white text-red-400 rounded-2xl transition-all"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </>
@@ -274,7 +339,7 @@ export default function InventoryHnMStore() {
         </div>
       </div>
 
-      {/* Edit Drawer (Slide in from right) */}
+      {/* Edit Drawer (Slide in from right) tetap sama */}
       {selectedProduct && (
         <div className="fixed inset-0 z-[60] flex justify-end">
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
