@@ -268,7 +268,7 @@ export default function POSPage() {
     <div className="flex flex-col lg:flex-row h-auto lg:h-screen gap-3 text-black font-sans relative p-2 md:p-4 bg-gray-50">
       
       {/* 1. AREA KATALOG & RIWAYAT */}
-      <div className="flex-1 flex flex-col gap-3 min-h-[500px] lg:min-h-0">
+      <div className="flex-1 flex flex-col gap-3 min-h-125 lg:min-h-0">
         
         {/* KATALOG */}
         <div className="flex-1 border border-gray-200 rounded-2xl flex flex-col overflow-hidden bg-white shadow-sm">
@@ -334,7 +334,7 @@ export default function POSPage() {
             <span className="p-2  text-xs font-regular italic text-gray-500">*Kelip-Kelip = Stok Tipis</span></div>
     
         {/* RIWAYAT TRANSAKSI HARI INI (UNTUK RETUR) */}
-        <div className="h-[200px] border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden flex flex-col">
+        <div className="h-50 border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden flex flex-col">
             <div className="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                 <p className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><RefreshCcw size={14}/> Transaksi Hari Ini (Bisa Retur)</p>
             </div>
@@ -358,7 +358,7 @@ export default function POSPage() {
       </div>
 
       {/* 2. AREA KERANJANG (Sama seperti kodemu) */}
-      <div className="w-full lg:w-[400px] border border-gray-200 rounded-2xl flex flex-col overflow-hidden bg-white shadow-xl h-[600px] lg:h-auto">
+      <div className="w-full lg:w-100 border border-gray-200 rounded-2xl flex flex-col overflow-hidden bg-white shadow-xl h-150 lg:h-auto">
         <div className="p-4 md:p-5 border-b border-gray-100 bg-black text-white">
           <h2 className="text-[14px] font-black uppercase tracking-widest flex items-center gap-2">
             <ShoppingCart size={16} /> KERANJANG BELANJA
@@ -422,7 +422,7 @@ export default function POSPage() {
 
       {/* 3. MODAL RETUR DENGAN FOTO */}
       {showReturnModal && selectedTx && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg font-black italic uppercase flex items-center gap-2 text-red-600"><RefreshCcw size={20}/> Proses Retur</h2>
@@ -490,7 +490,7 @@ export default function POSPage() {
 
       {/* 4. MODAL STRUK (RECEIPT) - Sama seperti kodemu */}
       {showReceipt && lastTransaction && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-4">
           <div className="max-w-5xl  bg-white rounded-3xl p-4 md:p-6 w-full max-sm shadow-2xl animate-in zoom-in-95 duration-300">
             <div id="printable-receipt-pos" className="bg-white p-4 md:p-6 font-mono text-black border-2 border-dashed border-gray-100 rounded-xl leading-tight">
               <div className="text-center border-b-2 border-dashed border-gray-200 pb-4 mb-4">

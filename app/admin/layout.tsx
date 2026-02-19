@@ -75,7 +75,7 @@ export default function AdminLayout({
       {/* Overlay Mobile */}
       {mobileOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 z-60 lg:hidden backdrop-blur-sm"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -85,7 +85,7 @@ export default function AdminLayout({
         className={`
           bg-white border-r border-gray-200 shadow-sm
           transition-all duration-300 ease-in-out
-          fixed h-full z-[70] flex flex-col
+          fixed h-full z-70 flex flex-col
           ${collapsed ? "w-20" : "w-64"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}

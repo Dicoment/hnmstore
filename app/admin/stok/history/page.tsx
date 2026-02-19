@@ -70,7 +70,7 @@ export default function HistoryStokPage() {
             <input 
               type="text" 
               placeholder="CARI NAMA PRODUK..." 
-              className="w-full md:w-[380px] pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-[20px] text-[11px] font-black outline-none uppercase shadow-sm focus:border-black focus:ring-1 focus:ring-black transition-all"
+              className="w-full md:w-95 pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-[20px] text-[11px] font-black outline-none uppercase shadow-sm focus:border-black focus:ring-1 focus:ring-black transition-all"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
@@ -78,7 +78,7 @@ export default function HistoryStokPage() {
       </div>
 
       {/* TABLE WRAPPER - Rounded XL & Border Style */}
-      <div className="bg-white border border-gray-100 rounded-[32px] shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-4xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>

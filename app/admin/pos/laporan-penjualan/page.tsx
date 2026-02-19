@@ -130,7 +130,7 @@ export default function LaporanPenjualanPage() {
       </div>
 
       {selectedTransaction && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-[11px] font-black uppercase italic tracking-widest">Detail Pesanan</h2>

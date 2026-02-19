@@ -108,7 +108,7 @@ export default function LaporanShiftPage() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             
             {/* HEADER SECTION */}
-            <div className="bg-white rounded-[32px] p-8 md:p-12 shadow-xl shadow-black/5 border border-gray-50 relative overflow-hidden">
+            <div className="bg-white rounded-4xl p-8 md:p-12 shadow-xl shadow-black/5 border border-gray-50 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
                 <TrendingUp size={200} />
               </div>
@@ -124,7 +124,7 @@ export default function LaporanShiftPage() {
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 min-w-[200px]">
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 min-w-40">
                   <div className="flex items-center gap-3 mb-2">
                     <User size={14} className="text-gray-400" />
                     <p className="text-[11px] font-black uppercase italic text-black">{adminName}</p>
@@ -140,7 +140,7 @@ export default function LaporanShiftPage() {
 
               {/* MAIN STATS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                <div className="bg-white p-8 rounded-[24px] border border-gray-100 shadow-sm relative group overflow-hidden">
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative group overflow-hidden">
                   <div className="absolute top-0 right-0 w-1 h-full bg-blue-500" />
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-3">Penjualan (Gross)</p>
                   <p className="text-2xl font-black italic tracking-tighter">Rp {report?.totalGross.toLocaleString('id-ID')}</p>
@@ -149,16 +149,16 @@ export default function LaporanShiftPage() {
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-[24px] border border-gray-100 shadow-sm relative overflow-hidden">
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-1 h-full bg-red-500" />
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-3 text-red-400">Total Retur (-)</p>
+                  <p className="text-[10px] font-black uppercase tracking-[2px] mb-3 text-red-400">Total Retur (-)</p>
                   <p className="text-2xl font-black italic tracking-tighter text-red-600">Rp {report?.totalReturnAmount.toLocaleString('id-ID')}</p>
                   <div className="mt-4 flex items-center gap-2">
                     <span className="text-[9px] font-black bg-red-50 text-red-600 px-2 py-1 rounded-md uppercase">{report?.returnCount} TRX</span>
                   </div>
                 </div>
 
-                <div className="bg-black p-8 rounded-[24px] shadow-2xl shadow-black/20 relative overflow-hidden">
+                <div className="bg-black p-8 rounded-3xl shadow-2xl shadow-black/20 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-1 h-full bg-green-500" />
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-[2px] mb-3">Net Cash (Di Laci)</p>
                   <p className="text-3xl font-black italic text-white tracking-tighter">Rp {report?.netSales.toLocaleString('id-ID')}</p>
@@ -178,7 +178,7 @@ export default function LaporanShiftPage() {
                 </div>
                 
                 {returns.length === 0 ? (
-                  <div className="bg-gray-50 border-2 border-dashed border-gray-100 rounded-[24px] p-12 text-center">
+                  <div className="bg-gray-50 border-2 border-dashed border-gray-100 rounded-3xl p-12 text-center">
                     <ShoppingBag size={32} className="mx-auto text-gray-200 mb-3" />
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Alhamdulillah, Tidak ada retur shift ini</p>
                   </div>
@@ -206,7 +206,7 @@ export default function LaporanShiftPage() {
                           </div>
                           <div>
                             <p className="text-[12px] font-black uppercase italic tracking-tighter">#{item.id.slice(0,10)}</p>
-                            <p className="text-[9px] font-bold text-red-500 uppercase mt-1 leading-tight max-w-[150px]">{item.return_reason || 'Retur Manual'}</p>
+                            <p className="text-[9px] font-bold text-red-500 uppercase mt-1 leading-tight max-w-37">{item.return_reason || 'Retur Manual'}</p>
                           </div>
                         </div>
                         <div className="text-right">

@@ -129,7 +129,7 @@ export default function DashboardPage() {
               
               {/* Batang Grafik */}
               <div 
-                className={`w-full max-w-[45px] rounded-t-md transition-all duration-700 ease-out shadow-sm ${idx === 6 ? 'bg-black' : 'bg-gray-100 group-hover:bg-gray-200'}`}
+                className={`w-full max-w-12 rounded-t-md transition-all duration-700 ease-out shadow-sm ${idx === 6 ? 'bg-black' : 'bg-gray-100 group-hover:bg-gray-200'}`}
                 style={{ height: `${(day.value / maxOmzet) * 100}%`, minHeight: '4px' }}
               />
               
@@ -158,7 +158,7 @@ export default function DashboardPage() {
                     {log.type === 'MASUK' ? <Package size={16} /> : <ShoppingCart size={16} />}
                   </div>
                   <div>
-                    <p className="text-[12px] font-black uppercase leading-tight truncate max-w-[150px] md:max-w-none">{log.product_name}</p>
+                    <p className="text-[12px] font-black uppercase leading-tight truncate max-w-37 md:max-w-none">{log.product_name}</p>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Size {log.size_value} • {log.type} oleh {log.Profiles?.full_name || 'Admin'}</p>
                   </div>
                 </div>
