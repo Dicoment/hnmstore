@@ -52,7 +52,7 @@ export default function TambahProdukPage() {
   // --- LOGIC IMAGE BAWAAN LO ---
   const processFiles = (filesArray: File[]) => {
     const validFiles = filesArray.filter(file => {
-      if (file.size > 1048576) {
+      if (file.size > 153600) { // 1.5 MB = 1536000 bytes
         alert(`File ${file.name} kegedean! Harus di bawah 1 MB.`)
         return false
       }

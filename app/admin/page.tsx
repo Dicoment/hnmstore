@@ -103,11 +103,11 @@ export default function DashboardPage() {
   const maxOmzet = currentMax === 0 ? 1 : currentMax
 
   return (
-    <div className="space-y-6 text-black">
+    <div className="space-y-6  text-black">
       
       {/* 1. STATS GRID RESPONSIVE */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard label="Omzet Hari Ini" value={`Rp ${stats.omzet.toLocaleString()}`} icon={<TrendingUp size={20} className="text-green-500" />} color="bg-green-50" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:gap-4">
+        <StatCard label="Omzet Hari Ini" value={`Rp ${stats.omzet.toLocaleString()}`} icon={<TrendingUp size={20} className="text-green-500 " />} color="bg-green-50" />
         <StatCard label="Order Berhasil" value={`${stats.orders} Order`} icon={<ShoppingCart size={20} className="text-blue-500" />} color="bg-blue-50" />
         <StatCard label="Sepatu Terjual" value={`${stats.soldItems} Psg`} icon={<Package size={20} className="text-purple-500" />} color="bg-purple-50" />
         <StatCard label="Stok Tipis" value={`${stats.lowStock} Item`} icon={<AlertTriangle size={20} className="text-red-500" />} color="bg-red-50" />

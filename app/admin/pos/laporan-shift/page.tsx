@@ -234,12 +234,6 @@ export default function LaporanShiftPage() {
             </div>
 
             {/* AGENCY BRANDING */}
-            <div className="flex flex-col items-center gap-4 pb-10">
-                <div className="h-px w-20 bg-gray-200" />
-                <p className="text-[10px] font-black text-gray-300 uppercase tracking-[6px]">
-                  Dicoment Agency <span className="text-black">X</span> HnM Store
-                </p>
-            </div>
           </div>
         )}
       </div>

@@ -26,43 +26,43 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // 1. Pakai getUser() untuk validasi keamanan terbaru
+  const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
   const isAuthPage = path === '/login'
   const isAdminPage = path.startsWith('/admin')
-  // Pastikan halaman unauthorized tidak ikut dicek role-nya biar tidak looping redirect
   const isUnauthorizedPage = path === '/admin/unauthorized'
 
-  // 1. PROTEKSI BELUM LOGIN
-  if (isAdminPage && !session && !isUnauthorizedPage) {
+  if (isAdminPage && !user && !isUnauthorizedPage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // 2. PROTEKSI SUDAH LOGIN
-  if (isAuthPage && session) {
+  if (isAuthPage && user) {
     return NextResponse.redirect(new URL('/admin', request.url))
   }
 
-  // 3. PROTEKSI ROLE (OWNER VS KARYAWAN)
-  if (session && isAdminPage && !isUnauthorizedPage) {
-    const ownerOnlyPaths = [
-      '/admin/tim',
-      '/admin/pos/laporan-penjualan',
-      '/admin/laporan'
-    ]
-
+  // 2. PROTEKSI ROLE DENGAN BYPASS CACHE
+  if (user && isAdminPage && !isUnauthorizedPage) {
+    const ownerOnlyPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
     const isAccessingRestricted = ownerOnlyPaths.some(p => path.startsWith(p))
 
     if (isAccessingRestricted) {
+      // Kita tambahkan abortSignal atau query unik agar tidak kena cache Next.js
       const { data: profile } = await supabase
         .from('Profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
 
-      // Jika role-nya KARYAWAN atau tidak punya data profil, lempar ke halaman keren yang kita buat tadi
-      if (!profile || profile.role === 'KARYAWAN') {
+      const userRole = profile?.role?.toString().trim().toUpperCase()
+      
+      // LOGGING UNTUK DEBUGGING (Cek di terminal VS Code lu pas lu klik menu)
+      console.log(`DEBUG: User ${user.email} Role Terdeteksi: [${userRole}]`)
+
+      // IZINKAN JIKA SUPERADMIN ATAU OWNER
+      if (userRole !== 'SUPERADMIN' && userRole !== 'OWNER') {
+        console.log("RESULT: REDIRECT TO UNAUTHORIZED")
         return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
       }
     }

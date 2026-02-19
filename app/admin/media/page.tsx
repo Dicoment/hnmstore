@@ -80,30 +80,53 @@ export default function MediaManagerPage() {
     }
   }
 
+  // UPLOAD: Sinkron dengan kolom 'url'
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
     try {
       for (const file of Array.from(e.target.files)) {
         const fileName = `${Date.now()}-${file.name}`
-        const { error } = await supabase.storage.from(activeBucket).upload(fileName, file)
-        if (error) throw error
+        const { error: uploadError } = await supabase.storage.from(activeBucket).upload(fileName, file)
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase.storage.from(activeBucket).getPublicUrl(fileName)
+        
+        const tableName = activeBucket === 'ProductImage' ? 'ProductImage' : 'ReturnImage'
+        await supabase.from(tableName).insert([{ url: publicUrl }]) // Nama kolom FIX: url
       }
       fetchMedia()
     } catch (err: any) {
-      alert(err.message)
+      alert("Upload Gagal: " + err.message)
     } finally { setUploading(false) }
   }
 
+  // DELETE: Sinkron dengan kolom 'url'
   async function handleDeleteSelected() {
     if (!confirm(`Hapus ${selectedFiles.length} file dari ${activeBucket} secara permanen?`)) return
     try {
       setLoading(true)
-      const { error } = await supabase.storage.from(activeBucket).remove(selectedFiles)
-      if (error) throw error
+      
+      const urlsToDelete = selectedFiles.map(fileName => {
+        const { data } = supabase.storage.from(activeBucket).getPublicUrl(fileName)
+        return data.publicUrl
+      })
+
+      const { error: storageError } = await supabase.storage.from(activeBucket).remove(selectedFiles)
+      if (storageError) throw storageError
+
+      const tableName = activeBucket === 'ProductImage' ? 'ProductImage' : 'ReturnImage'
+      const { error: dbError } = await supabase
+        .from(tableName)
+        .delete()
+        .in('url', urlsToDelete) // Nama kolom FIX: url
+
+      if (dbError) console.error("DB Cleanup Error:", dbError.message)
+
+      alert(`Berhasil menghapus ${selectedFiles.length} file!`)
       fetchMedia()
     } catch (err: any) {
-      alert(err.message)
+      alert("Hapus Gagal: " + err.message)
     } finally { setLoading(false) }
   }
 
@@ -118,7 +141,6 @@ export default function MediaManagerPage() {
     <div className="flex flex-col h-screen lg:h-[calc(100vh-140px)] font-sans text-black">
       <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden lg:rounded-xl lg:mx-4 lg:my-2 shadow-sm">
         
-        {/* HEADER RESPONSIVE */}
         <div className="p-4 lg:p-6 border-b border-gray-100 bg-white sticky top-0 z-30 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -146,7 +168,6 @@ export default function MediaManagerPage() {
           </div>
 
           <div className="flex flex-col md:flex-row gap-3">
-            {/* TABS BUCKET */}
             <div className="flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
                <button 
                 onClick={() => setActiveBucket('ProductImage')}
@@ -162,7 +183,6 @@ export default function MediaManagerPage() {
                </button>
             </div>
 
-            {/* SEARCH & SELECT ALL */}
             <div className="flex gap-2 w-full">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -179,7 +199,6 @@ export default function MediaManagerPage() {
           </div>
         </div>
 
-        {/* GRID RESPONSIVE (Mobile 2 kolom, Desktop 6 kolom) */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-white custom-scrollbar">
           {loading && files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-300">

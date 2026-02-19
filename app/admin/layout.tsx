@@ -49,12 +49,7 @@ export default function AdminLayout({
           .eq('id', user.id)
           .single()
 
-        if (profile) {
-          setAdminName(profile.full_name)
-        } else {
-          const name = user.user_metadata?.username || user.email?.split('@')[0]
-          setAdminName(name)
-        }
+        if (profile) setAdminName(profile.full_name)
       }
     }
     getAdmin()
@@ -75,7 +70,7 @@ export default function AdminLayout({
       {/* Overlay Mobile */}
       {mobileOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-60 lg:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 z-[90] lg:hidden backdrop-blur-sm"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -83,30 +78,31 @@ export default function AdminLayout({
       {/* Sidebar */}
       <aside
         className={`
-          bg-white border-r border-gray-200 shadow-sm
+          bg-white border-r border-gray-200 shadow-xl lg:shadow-sm
           transition-all duration-300 ease-in-out
-          fixed h-full z-70 flex flex-col
-          ${collapsed ? "w-20" : "w-64"}
+          fixed h-full z-[100] flex flex-col
+          ${collapsed ? "w-20" : "w-72 lg:w-64"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
-        <div className="p-6 flex items-center justify-between border-b border-gray-50">
+        <div className="p-6 flex items-center justify-between border-b border-gray-50 shrink-0">
           {(!collapsed || mobileOpen) && (
             <div className="flex items-center gap-2 animate-in fade-in duration-500">
-              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0">
                 <span className="text-white font-black text-xs">HnM</span>
               </div>
-              <span className="font-black italic tracking-tighter text-gray-900 uppercase">Store</span>
+              <span className="font-black italic tracking-tighter text-gray-900 uppercase truncate">Store</span>
             </div>
           )}
           <button
             onClick={() => mobileOpen ? setMobileOpen(false) : setCollapsed(!collapsed)}
-            className="text-gray-400 hover:bg-gray-100 p-2 rounded-xl transition-all active:scale-90"
+            className="text-gray-400 hover:bg-gray-100 p-2 rounded-xl active:scale-90 transition-all"
           >
-            {mobileOpen ? <CloseIcon size={20} /> : <PanelLeft size={20} className="hidden lg:block" />}
+            {mobileOpen ? <CloseIcon size={20} className="text-black" /> : <PanelLeft size={20} className="hidden lg:block" />}
           </button>
         </div>
 
+        {/* --- MENU LENGKAP GAK ADA YANG DIBUANG --- */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
           <SidebarItem href="/admin" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin'} />
 
@@ -129,6 +125,7 @@ export default function AdminLayout({
           <SidebarItem href="/admin/wa-settings" icon={<MessageSquare size={18} />} label="WhatsApp Admin" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/wa-settings'} />
         </nav>
 
+        {/* Footer Sidebar */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50">
           <div className={`flex items-center gap-3 ${(collapsed && !mobileOpen) ? "justify-center" : ""}`}>
             <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-white shadow-lg shrink-0">
@@ -137,16 +134,16 @@ export default function AdminLayout({
             {(!collapsed || mobileOpen) && (
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tighter">{adminName}</p>
-                <p className="text-[10px] font-bold text-gray-400 truncate lowercase">{adminEmail}</p>
+                <p className="text-[10px] font-bold text-gray-400 truncate">{adminEmail}</p>
               </div>
             )}
           </div>
           {(!collapsed || mobileOpen) && (
             <div className="grid grid-cols-2 gap-2 mt-4">
-              <Link href="/admin/profile" className="flex items-center justify-center gap-1.5 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 hover:bg-gray-50 transition-all">
+              <Link href="/admin/profile" className="flex items-center justify-center gap-1.5 py-2.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 active:bg-gray-50">
                 <Settings size={12} /> Profil
               </Link>
-              <button onClick={handleLogout} className="flex items-center justify-center gap-1.5 py-2 bg-red-50 border border-red-100 rounded-lg text-[10px] font-bold text-red-600 hover:bg-red-100 transition-all">
+              <button onClick={handleLogout} className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 border border-red-100 rounded-lg text-[10px] font-bold text-red-600 active:bg-red-100">
                 <LogOut size={12} /> Keluar
               </button>
             </div>
@@ -155,23 +152,23 @@ export default function AdminLayout({
       </aside>
 
       {/* Content Area */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${collapsed ? "lg:ml-20" : "lg:ml-64"} ml-0`}>
-        <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-4">
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${collapsed ? "lg:ml-20" : "lg:ml-64"} ml-0 min-w-0`}>
+        <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-40">
+          <div className="flex items-center gap-4 overflow-hidden">
             <button 
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 bg-gray-100 rounded-xl text-black active:scale-90 transition-all"
+              className="lg:hidden p-2.5 bg-gray-100 rounded-xl text-black active:scale-90 shrink-0"
             >
               <Menu size={20} />
             </button>
-            <h1 className="font-black text-gray-900 text-lg lg:text-xl uppercase tracking-tighter w-2xl truncate">
+            <h1 className="font-black text-gray-900 text-sm lg:text-xl uppercase tracking-tighter truncate">
               {pathname === '/admin' ? 'Overview' : pathname?.split('/').pop()?.replace('-', ' ')}
             </h1>
           </div>
-          <div className="hidden md:flex items-center gap-6 text-right">
+          <div className="hidden sm:flex items-center gap-6 text-right">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase">Status Sistem</p>
-              <p className="text-xs font-black text-green-500 uppercase flex items-center justify-end gap-1">
+              <p className="text-[9px] font-bold text-gray-400 uppercase">Status Sistem</p>
+              <p className="text-[10px] font-black text-green-500 uppercase flex items-center justify-end gap-1">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Online
               </p>
             </div>
@@ -198,14 +195,14 @@ function SidebarItem({ href, icon, label, collapsed, mobileOpen, active }: any) 
     <Link
       href={href}
       className={`
-        flex items-center gap-3 px-3 py-3 rounded-xl transition-all group
+        flex items-center gap-3 px-3 py-3 rounded-xl transition-all group active:scale-[0.98]
         ${active ? "bg-black text-white shadow-lg" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}
         ${(collapsed && !mobileOpen) ? "justify-center" : ""}
       `}
     >
-      <span className={`${active ? "text-white" : "text-gray-400 group-hover:text-gray-900"}`}>{icon}</span>
-      {(!collapsed || mobileOpen) && <span className="text-[13px] font-bold uppercase tracking-tight">{label}</span>}
-      {(!collapsed || mobileOpen) && active && <ChevronRight size={14} className="ml-auto opacity-50" />}
+      <span className={`${active ? "text-white" : "text-gray-400 group-hover:text-gray-900"} shrink-0`}>{icon}</span>
+      {(!collapsed || mobileOpen) && <span className="text-[13px] font-bold uppercase tracking-tight truncate">{label}</span>}
+      {(!collapsed || mobileOpen) && active && <ChevronRight size={14} className="ml-auto opacity-50 shrink-0" />}
     </Link>
   )
 }
