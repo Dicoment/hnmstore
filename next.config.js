@@ -1,15 +1,18 @@
-/** @type {import('next').NextConfig} */
+/** @type {import('next').Metadata} */
 const nextConfig = {
   images: {
     remotePatterns: [
       {
+        protocol: 'http',
+        hostname: '103.197.189.71', // IP VPS kamu
+        port: '3000',
+      },
+      {
         protocol: 'https',
-        hostname: 'xjmkyghgubefspsfawce.supabase.co',
-        port: '',
-        pathname: '/storage/v1/object/public/**',
+        hostname: 'hnmstore.id', // Domain kamu
       },
     ],
   },
-};
+}
 
-export default nextConfig;
+module.exports = nextConfig
