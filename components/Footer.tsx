@@ -1,73 +1,102 @@
 'use client'
 
 import Link from 'next/link'
-import { Instagram, Facebook, Twitter, ExternalLink } from 'lucide-react'
+import { Instagram, ExternalLink } from 'lucide-react'
+
+const TikTokIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+)
 
 export default function Footer() {
   return (
-    <footer className="bg-zinc-950 text-white border-t border-white/5 pt-20 pb-10 px-6 font-sans">
+    <footer className="bg-zinc-950 text-white border-t border-white/5 pt-24 pb-12 px-6 font-sans">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-16 mb-24">
           
-          {/* BRAND BOX */}
-          <div className="max-w-xs space-y-6">
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-white">
+          {/* 1. BRAND BOX */}
+          <div className="lg:col-span-2 space-y-8">
+            <h2 className="text-3xl font-black uppercase tracking-tighter text-white">
               HnM<span className="text-zinc-500">Store</span>
             </h2>
-            <p className="text-zinc-500 text-[10px] font-black leading-relaxed tracking-[0.2em] uppercase">
+            <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-sm">
               Authentic sneakers curator based in Jepara, Indonesia. Built for the bold, styled for the streets.
             </p>
-            <div className="flex gap-3">
-              <SocialIcon icon={<Instagram size={16}/>} />
-              <SocialIcon icon={<Twitter size={16}/>} />
-              <SocialIcon icon={<Facebook size={16}/>} />
+            <div className="flex gap-4">
+              <a href="https://www.instagram.com/hnm_store_id?igsh=bXRrYWJtbDdwY3cx" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-zinc-400 hover:bg-white hover:text-black hover:border-white transition-all duration-500">
+                <Instagram size={20} />
+              </a>
+              <a href="https://www.tiktok.com/@hnm_store12?_r=1&_t=ZS-93YkEWx2j9F" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-zinc-400 hover:bg-white hover:text-black hover:border-white transition-all duration-500">
+                <TikTokIcon size={20} />
+              </a>
             </div>
           </div>
 
-          {/* QUICK LINKS */}
-          <div className="space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 border-l-4 border-white pl-3">Navigasi</h4>
-            <ul className="grid grid-cols-2 gap-x-12 gap-y-4">
-              {['Katalog', 'Brands', 'New Arrival', 'Admin'].map((l) => (
-                <li key={l}>
-                  <Link 
-                    href={l === 'Katalog' ? '/produk' : `/${l.toLowerCase().replace(' ', '-')}`} 
-                    className="text-[11px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all"
-                  >
-                    {l}
+          {/* 2. NAVIGASI - UPDATE: DITAMBAHKAN KEBIJAKAN RETUR */}
+          <div className="space-y-8">
+            <h4 className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-600">Navigasi</h4>
+            <ul className="space-y-4">
+              {[
+                { name: 'Home', href: '/' },
+                { name: 'Katalog', href: '/produk' },
+                { name: 'New Arrival', href: '/new-arrival' },
+                { name: 'Kebijakan Retur', href: '/kebijakan-retur' }, // Link baru
+              ].map((item) => (
+                <li key={item.name}>
+                  <Link href={item.href} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                    {item.name}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
+
+          {/* 3. KATEGORI */}
+          <div className="space-y-8">
+            <h4 className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-600">Kategori</h4>
+            <ul className="space-y-4">
+              {[
+                { name: 'Casual', id: 'casual' }, 
+                { name: 'Running', id: 'running' }
+              ].map((item) => (
+                <li key={item.name}>
+                  <Link href={`/produk?model=${item.id}`} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                    {item.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 4. BRANDS */}
+          <div className="space-y-8">
+            <h4 className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-600">Top Brands</h4>
+            <ul className="space-y-4">
+              {['Nike','Asics', 'Adidas', 'Puma', 'New Balance'].map((item) => (
+                <li key={item}>
+                  <Link href={`/produk?brand=${item.toLowerCase()}`} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                    {item}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
         </div>
 
         {/* BOTTOM BAR */}
-        <div className="border-t border-white/5 pt-10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.5em]">
+        <div className="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-8">
+          <p className="text-xs font-medium text-zinc-500 tracking-wider">
             © 2026 HnM Store. All Rights Reserved.
           </p>
           
-          {/* DICOMENT BRANDING */}
-          <a 
-            href="https://dicoment.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="group flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all"
-          >
-            Developed by <span className="text-white underline underline-offset-4 decoration-zinc-700 group-hover:decoration-white">Dicoment Agency</span>
-            <ExternalLink size={10} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          <a href="https://dicoment.com" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-white transition-all">
+            Developed by <span className="text-white underline underline-offset-8 decoration-zinc-800 group-hover:decoration-white transition-all">Dicoment Agency</span>
+            <ExternalLink size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </a>
         </div>
       </div>
     </footer>
-  )
-}
-
-function SocialIcon({ icon }: { icon: React.ReactNode }) {
-  return (
-    <button className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-black hover:border-white transition-all">
-      {icon}
-    </button>
   )
 }

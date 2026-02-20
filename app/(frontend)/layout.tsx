@@ -1,6 +1,7 @@
 // 1. Import dulu filenya dari folder components
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import FloatingWA from '@/components/FloatingWA'
 
 export default function FrontendLayout({
   children,
@@ -14,7 +15,7 @@ export default function FrontendLayout({
       
       {/* Children ini adalah isi halaman (Home, Shop, dll) */}
       <main>{children}</main>
-      
+      <FloatingWA />
       <Footer />
     </section>
   )

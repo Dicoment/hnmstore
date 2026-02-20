@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, LayoutGrid, Zap, ShieldCheck, Truck, Loader2 } from 'lucide-react'
+import { ArrowRight, LayoutGrid, Loader2, Quote, ShieldCheck, Truck, Zap } from 'lucide-react'
 
 export default function HomePage() {
   const [newArrivals, setNewArrivals] = useState<any[]>([])
@@ -36,87 +36,116 @@ export default function HomePage() {
   return (
     <div className="bg-white text-black font-sans overflow-x-hidden">
       
-      {/* 1. HERO SECTION - INDUSTRIAL POWER */}
-      <section className="relative h-[90vh] flex items-center justify-center bg-zinc-900 overflow-hidden">
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
+      {/* 1. HERO SECTION */}
+      <section className="relative h-screen flex items-center justify-center bg-black overflow-hidden">
+        <div className="absolute inset-0 z-10 bg-black/50" />
         <Image 
-          src="/images/hero-bg.jpg" 
+          src="/uploads/hero.png" 
           alt="HnM Hero" 
           fill 
-          className="object-cover scale-105 animate-slow-zoom"
+          className="object-cover opacity-70 scale-105 animate-slow-pan"
           priority
           unoptimized
         />
         
-        <div className="relative z-20 text-center space-y-8 px-4 max-w-5xl">
-          <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 animate-fade-in-down">
-            <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-            <span className="text-white text-[10px] font-black uppercase tracking-[0.4em]">New Season Drops</span>
+        <div className="relative z-20 text-center space-y-12 px-6 max-w-6xl">
+          <div className="space-y-6">
+            <p className="text-white/40 text-[10px] font-black uppercase tracking-[1em] animate-fade-in">
+              HNM STORE JEPARA • AUTHENTIC CURATOR
+            </p>
+            <h1 className="text-6xl md:text-[8rem] font-black text-white uppercase tracking-tighter leading-[0.8] mix-blend-difference">
+              DEFINING STREET <br /> <span className="text-zinc-600">CULTURE.</span>
+            </h1>
+            <p className="text-white/60 text-[10px] md:text-xs font-bold uppercase tracking-[0.4em] max-w-xl mx-auto leading-relaxed">
+              Elevate your rotation with pure authenticity. Because your style deserves better than 'almost real'.
+            </p>
           </div>
           
-          <h1 className="text-6xl md:text-9xl font-black text-white uppercase tracking-tighter leading-[0.85] animate-fade-in-up">
-            STEP UP <br /> <span className="text-zinc-500">YOUR GAME.</span>
-          </h1>
-          
-          <p className="text-white/60 text-xs md:text-sm font-bold uppercase tracking-[0.3em] max-w-xl mx-auto leading-relaxed">
-            Authentic sneakers collection for those who never compromise on style and quality.
-          </p>
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-6">
-            <Link href="/produk" className="w-full md:w-auto bg-white text-black px-12 py-5 rounded-xl font-black text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 group shadow-2xl text-black">
-              Shop Collection <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Vertical Brand Label */}
-        <div className="absolute left-10 bottom-10 z-20 hidden lg:block">
-          <p className="text-white/20 text-sm font-black uppercase tracking-[1em] [writing-mode:vertical-lr] rotate-180">
-            HNM STORE AUTHENTIC
-          </p>
+          <Link href="/produk" className="inline-flex items-center gap-4 bg-white text-black px-12 py-5 rounded-full font-black text-[10px] uppercase tracking-[0.3em] hover:bg-zinc-200 transition-all">
+            Browse Collection <ArrowRight size={14} />
+          </Link>
         </div>
       </section>
 
-      {/* 2. FEATURES BAR */}
-      <div className="border-b-2 border-zinc-100">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 divide-y-2 md:divide-y-0 md:divide-x-2 divide-zinc-100">
-          <Feature item="100% Authentic" sub="Money back guarantee" icon={<ShieldCheck size={24}/>} />
-          <Feature item="Fast Shipping" sub="Nationwide delivery" icon={<Truck size={24}/>} />
-          <Feature item="Premium Service" sub="24/7 WhatsApp support" icon={<Zap size={24}/>} />
-        </div>
-      </div>
-
-      {/* 3. NEW ARRIVALS - INDUSTRIAL GRID */}
-      <section className="max-w-7xl mx-auto px-4 py-24 md:py-32">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
-          <div className="space-y-4">
-            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none">
-              New <span className="text-zinc-300">Arrivals</span>
-            </h2>
-            <div className="h-2 w-24 bg-black" />
+      {/* 2. THE STATEMENT */}
+      <section className="py-32 bg-white px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-16 items-center">
+            <div className="flex-1 text-center md:text-left">
+              <h2 className="text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.9]">
+                NOT JUST <br /> <span className="text-zinc-200 text-outline">A PAIR.</span> <br /> IT'S AN IDENTITY.
+              </h2>
+            </div>
+            <div className="flex-1 space-y-8">
+               <p className="text-zinc-400 text-sm font-bold uppercase tracking-widest leading-relaxed">
+                 We don't just sell shoes. We curate the history of street culture. Every drop is verified, every box is a legacy.
+               </p>
+               <div className="h-1 w-20 bg-black mx-auto md:mx-0" />
+            </div>
           </div>
-          <Link href="/produk" className="group flex items-center gap-3 text-[11px] font-black uppercase tracking-widest border-b-4 border-black pb-2 hover:text-zinc-500 transition-all">
-            Explore All <LayoutGrid size={18} />
+        </div>
+      </section>
+
+      {/* 3. CATEGORY HIGHLIGHTS */}
+      <section className="grid grid-cols-1 md:grid-cols-2 h-[80vh] md:h-[60vh]">
+        <Link href="/produk" className="relative group overflow-hidden border-r border-white/5">
+          <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
+          <Image src="/uploads/sepatu.webp" alt="Performance" fill className="object-cover transition-all duration-1000 group-hover:scale-110" unoptimized />
+          <div className="relative z-20 h-full flex flex-col justify-end p-12">
+            <h3 className="text-white text-4xl font-black uppercase tracking-tighter">Performance</h3>
+            <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.4em] mt-2">Built for the court</p>
+          </div>
+        </Link>
+        <Link href="/produk" className="relative group overflow-hidden">
+          <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
+          <Image src="/uploads/nike.webp" alt="Lifestyle" fill className="object-cover transition-all duration-1000 group-hover:scale-110" unoptimized />
+          <div className="relative z-20 h-full flex flex-col justify-end p-12 text-right items-end">
+            <h3 className="text-white text-4xl font-black uppercase tracking-tighter">Lifestyle</h3>
+            <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.4em] mt-2">Master the streets</p>
+          </div>
+        </Link>
+      </section>
+
+      {/* 4. NEW ARRIVALS */}
+      <section className="max-w-7xl mx-auto px-6 py-32 md:py-40">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 mb-20">
+          <div className="space-y-4">
+             <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">Live Inventory</p>
+             </div>
+            <h2 className="text-6xl md:text-7xl font-black uppercase tracking-tighter leading-none">
+              Fresh <span className="text-zinc-200 text-outline">Drops.</span>
+            </h2>
+          </div>
+          <Link href="/produk" className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-10 py-5 rounded-full hover:bg-black hover:text-white transition-all">
+            Full Catalog <LayoutGrid size={16} />
           </Link>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="animate-spin" size={40} /></div>
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-zinc-200" size={32} /></div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {newArrivals.map((p) => (
               <Link key={p.id} href={`/produk/${p.slug}`} className="group block">
-                <div className="aspect-[4/5] relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[30px_30px_0px_0px_rgba(0,0,0,0.03)]">
-                  <Image src={p.images?.[0] || '/placeholder.png'} alt={p.name} fill className="object-cover transition-all duration-700 group-hover:scale-110" unoptimized />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-black text-white text-[8px] font-black uppercase px-2 py-1 rounded tracking-widest">
+                <div className="aspect-3/4 relative overflow-hidden bg-zinc-50 rounded-2xl border border-zinc-100">
+                  <Image 
+                    src={p.images?.[0]?.startsWith('http') ? p.images[0] : `/uploads/${p.images[0]}`} 
+                    alt={p.name} 
+                    fill 
+                    className="object-cover transition-all duration-1000 group-hover:scale-110" 
+                    unoptimized 
+                  />
+                  <div className="absolute top-6 left-6">
+                    <span className="bg-black text-white text-[8px] font-black uppercase px-3 py-1 tracking-widest">
                       {p.brandName}
                     </span>
                   </div>
                 </div>
-                <div className="mt-6 space-y-2">
-                  <h3 className="font-black text-base uppercase tracking-tight truncate">{p.name}</h3>
-                  <p className="font-black text-zinc-400 text-lg tracking-tighter">
+                <div className="mt-8 space-y-2">
+                  <h3 className="font-black text-[13px] uppercase tracking-wider text-zinc-800 line-clamp-1">{p.name}</h3>
+                  <p className="font-black text-black text-xl tracking-tighter">
                     RP {Number(p.price_regular).toLocaleString('id-ID')}
                   </p>
                 </div>
@@ -126,37 +155,38 @@ export default function HomePage() {
         )}
       </section>
 
+      {/* 5. TRUST BANNER */}
+      <section className="bg-zinc-950 py-32 px-6">
+        <div className="max-w-7xl mx-auto text-center space-y-16">
+          <Quote className="text-white/10 mx-auto" size={80} />
+          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-tight max-w-4xl mx-auto">
+            "THE ONLY WAY TO PREDICT THE FUTURE IS TO CREATE IT."
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-16">
+            <FeatureItem title="100% Legit" desc="Double verification process" icon={<ShieldCheck className="mx-auto mb-4 text-zinc-500" size={24}/>} />
+            <FeatureItem title="Fast Delivery" desc="Same day dispatch service" icon={<Truck className="mx-auto mb-4 text-zinc-500" size={24}/>} />
+            <FeatureItem title="Expert Support" desc="Sneakerhead assistant 24/7" icon={<Zap className="mx-auto mb-4 text-zinc-500" size={24}/>} />
+          </div>
+        </div>
+      </section>
+
       <style jsx global>{`
-        @keyframes slow-zoom {
-          0% { transform: scale(1); }
-          100% { transform: scale(1.1); }
-        }
-        .animate-slow-zoom { animation: slow-zoom 20s infinite alternate ease-in-out; }
-        .animate-fade-in-up { animation: fadeInUp 1s ease-out; }
-        .animate-fade-in-down { animation: fadeInDown 1s ease-out; }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(40px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeInDown {
-          from { opacity: 0; transform: translateY(-20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        .text-outline { -webkit-text-stroke: 1px #e4e4e7; color: transparent; }
+        @keyframes slow-pan { 0% { transform: scale(1.1) translateX(-2%); } 100% { transform: scale(1.1) translateX(2%); } }
+        .animate-slow-pan { animation: slow-pan 20s infinite alternate ease-in-out; }
+        .animate-fade-in { animation: fadeIn 2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   )
 }
 
-function Feature({ item, sub, icon }: any) {
+function FeatureItem({ title, desc, icon }: { title: string, desc: string, icon: React.ReactNode }) {
   return (
-    <div className="p-10 flex flex-col items-center text-center gap-4 group">
-      <div className="p-4 bg-zinc-50 rounded-2xl group-hover:bg-black group-hover:text-white transition-all duration-500">
-        {icon}
-      </div>
-      <div>
-        <p className="text-xs font-black uppercase tracking-widest mb-1 text-black">{item}</p>
-        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{sub}</p>
-      </div>
+    <div className="space-y-2">
+      {icon}
+      <p className="text-white text-lg font-black uppercase tracking-tighter">{title}</p>
+      <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">{desc}</p>
     </div>
   )
 }

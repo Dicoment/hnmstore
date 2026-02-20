@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Tags, Shapes, PanelLeft, PlusCircle, Package, 
   ShoppingCart, Settings, LogOut, User, ImageIcon, Users, 
   MessageSquare, ChevronRight, Boxes, FileBarChart, Menu, 
-  X as CloseIcon, RefreshCcw, History
+  X as CloseIcon, RefreshCcw, History, Globe // Tambah Globe
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
@@ -21,9 +21,7 @@ export default function AdminLayout({
   const [adminName, setAdminName] = useState('Admin')
   const [adminEmail, setAdminEmail] = useState('')
   const pathname = usePathname()
-  const router = useRouter()
 
-  // Inisialisasi Auth Client (Hanya untuk Session)
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -32,15 +30,11 @@ export default function AdminLayout({
   useEffect(() => {
     const getAdminData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      
       if (!user) {
         window.location.href = '/login'
         return
       }
-
       setAdminEmail(user.email || '')
-      
-      // Ambil Nama Admin dari Database Eksternal (Full VPS)
       try {
         const res = await fetch('/api/vps-db', {
           method: 'POST',
@@ -91,21 +85,44 @@ export default function AdminLayout({
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
-        <div className="p-6 flex items-center justify-between border-b border-gray-50 shrink-0">
-          {(!collapsed || mobileOpen) && (
-            <div className="flex items-center gap-2 animate-in fade-in duration-500">
-              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 text-white font-black text-xs uppercase">
-                HnM
+        <div className="p-6 flex flex-col gap-4 border-b border-gray-50 shrink-0">
+          <div className="flex items-center justify-between">
+             {(!collapsed || mobileOpen) && (
+              <div className="flex items-center gap-2 animate-in fade-in duration-500">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 text-white font-black text-xs uppercase">
+                  HnM
+                </div>
+                <span className="font-black tracking-tighter text-gray-900 uppercase truncate">Store</span>
               </div>
-              <span className="font-black   tracking-tighter text-gray-900 uppercase truncate">Store</span>
-            </div>
+            )}
+            <button
+              onClick={() => mobileOpen ? setMobileOpen(false) : setCollapsed(!collapsed)}
+              className="text-gray-400 hover:bg-gray-100 p-2 rounded-xl active:scale-90 transition-all"
+            >
+              {mobileOpen ? <CloseIcon size={20} className="text-black" /> : <PanelLeft size={20} className="hidden lg:block" />}
+            </button>
+          </div>
+
+          {/* Tombol Visit Website - Ala WordPress */}
+          {(!collapsed || mobileOpen) ? (
+             <Link 
+              href="/" 
+              target="_blank"
+              className="flex items-center gap-3 px-3 py-2.5 bg-zinc-50 hover:bg-zinc-900 hover:text-white rounded-xl transition-all group border border-zinc-100"
+            >
+              <Globe size={16} className="text-zinc-400 group-hover:text-white transition-colors" />
+              <span className="text-[10px] font-black uppercase tracking-widest truncate">Visit Website</span>
+            </Link>
+          ) : (
+             <Link 
+              href="/" 
+              target="_blank"
+              className="mx-auto w-10 h-10 bg-zinc-50 hover:bg-black hover:text-white rounded-xl flex items-center justify-center transition-all border border-zinc-100"
+              title="Visit Website"
+            >
+              <Globe size={16} />
+            </Link>
           )}
-          <button
-            onClick={() => mobileOpen ? setMobileOpen(false) : setCollapsed(!collapsed)}
-            className="text-gray-400 hover:bg-gray-100 p-2 rounded-xl active:scale-90 transition-all"
-          >
-            {mobileOpen ? <CloseIcon size={20} className="text-black" /> : <PanelLeft size={20} className="hidden lg:block" />}
-          </button>
         </div>
 
         {/* Menu Navigation */}
@@ -167,7 +184,7 @@ export default function AdminLayout({
             >
               <Menu size={20} />
             </button>
-            <h1 className="font-black text-gray-900 text-sm lg:text-xl uppercase tracking-tighter truncate  ">
+            <h1 className="font-black text-gray-900 text-sm lg:text-xl uppercase tracking-tighter truncate">
               {pathname === '/admin' ? 'Overview' : pathname?.split('/').pop()?.replace('-', ' ')}
             </h1>
           </div>
@@ -193,7 +210,7 @@ export default function AdminLayout({
 
 function SidebarLabel({ label, collapsed, mobileOpen }: { label: string, collapsed: boolean, mobileOpen: boolean }) {
   if (collapsed && !mobileOpen) return <div className="border-t border-gray-100 my-4 mx-auto w-10" />
-  return <p className="pt-6 pb-2 px-3 text-xs font-black uppercase tracking-[2px] text-gray-400  ">{label}</p>
+  return <p className="pt-6 pb-2 px-3 text-xs font-black uppercase tracking-[2px] text-gray-400">{label}</p>
 }
 
 function SidebarItem({ href, icon, label, collapsed, mobileOpen, active }: any) {

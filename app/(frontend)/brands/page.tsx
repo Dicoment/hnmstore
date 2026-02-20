@@ -8,7 +8,7 @@ import { Loader2, ArrowRight, LayoutGrid } from 'lucide-react'
 interface Brand {
   id: string
   name: string
-  images: string // Biasanya logo brand disimpan di sini
+  images: string 
 }
 
 export default function BrandsPage() {
@@ -19,7 +19,6 @@ export default function BrandsPage() {
     async function fetchBrands() {
       try {
         setLoading(true)
-        // Ambil semua brand dari VPS
         const sql = `SELECT * FROM public."Brand" ORDER BY name ASC`
         const res = await fetch('/api/vps-db', { 
           method: 'POST', 
@@ -49,7 +48,7 @@ export default function BrandsPage() {
         
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row justify-between items-end gap-8 border-b-8 border-black pb-12 mb-20">
-          <div className="space-y-4">
+          <div className="space-y-4 text-black">
             <div className="inline-flex items-center gap-2 bg-zinc-100 px-3 py-1 rounded-full">
                <div className="w-2 h-2 bg-black rounded-full animate-pulse" />
                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Official Partners</span>
@@ -71,27 +70,26 @@ export default function BrandsPage() {
               href={`/produk?brand=${brand.id}`} 
               className="group relative flex flex-col bg-zinc-50 border-2 border-zinc-100 rounded-xl overflow-hidden transition-all hover:border-black hover:shadow-[30px_30px_0px_0px_rgba(0,0,0,0.03)]"
             >
-              {/* BRAND LOGO/COVER AREA */}
-              <div className="aspect-[16/9] relative overflow-hidden flex items-center justify-center p-12 bg-white border-b-2 border-zinc-50">
-                {brand.images ? (
-                  <Image 
-                    src={brand.images} 
-                    alt={brand.name} 
-                    fill 
-                    className="object-contain p-10 grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="text-4xl font-black text-zinc-200 uppercase tracking-tighter">{brand.name}</span>
-                )}
-                
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
-              </div>
-
+              {/* BRAND LOGO AREA */}
+<div className="aspect-video relative overflow-hidden flex items-center justify-center bg-white border-b-2 border-zinc-50">
+  {brand.images ? (
+    <Image 
+      src={`/uploads/${brand.images}`} 
+      alt={brand.name} 
+      fill 
+      // UBAH DISINI: Hapus p-10, ganti object-contain jadi object-cover
+      className="object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
+      unoptimized
+    />
+  ) : (
+    <span className="text-4xl font-black text-zinc-200 uppercase tracking-tighter">{brand.name}</span>
+  )}
+  
+  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
+</div>
               {/* BRAND INFO */}
-              <div className="p-8 flex justify-between items-center bg-zinc-50 group-hover:bg-white transition-colors">
-                <div className="space-y-1">
+              <div className="p-8 flex justify-between items-center bg-zinc-50 group-hover:bg-white transition-colors text-black">
+                <div className="space-y-1 text-black">
                   <h2 className="text-2xl font-black uppercase tracking-tighter">{brand.name}</h2>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Koleksi Terverifikasi</p>
                 </div>
