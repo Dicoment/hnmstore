@@ -1,18 +1,19 @@
-/** @type {import('next').Metadata} */
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
       {
         protocol: 'http',
-        hostname: '103.197.189.71', // IP VPS kamu
+        hostname: '103.197.189.71', // IP VPS lu
         port: '3000',
       },
       {
         protocol: 'https',
-        hostname: 'hnmstore.id', // Domain kamu
+        hostname: 'hnmstore.id', // Domain lu
       },
     ],
   },
 }
 
-module.exports = nextConfig
+// Ganti module.exports jadi export default
+export default nextConfig
