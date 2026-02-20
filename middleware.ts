@@ -3,19 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+    request: { headers: request.headers },
   })
 
+  // 1. Inisialisasi Client Supabase (Hanya untuk Cek Sesi Auth)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
+        get(name: string) { return request.cookies.get(name)?.value },
         set(name: string, value: string, options: CookieOptions) {
           response.cookies.set({ name, value, ...options })
         },
@@ -26,44 +23,52 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 1. Pakai getUser() untuk validasi keamanan terbaru
+  // 2. Ambil User yang Sedang Login
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
   const isAuthPage = path === '/login'
   const isAdminPage = path.startsWith('/admin')
-  const isUnauthorizedPage = path === '/admin/unauthorized'
 
-  if (isAdminPage && !user && !isUnauthorizedPage) {
+  // --- LOGIKA PROTEKSI HALAMAN ---
+
+  // Belum login tapi maksa masuk area admin? Lempar ke login
+  if (isAdminPage && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // Sudah login tapi mau buka halaman login lagi? Lempar ke dashboard
   if (isAuthPage && user) {
     return NextResponse.redirect(new URL('/admin', request.url))
   }
 
-  // 2. PROTEKSI ROLE DENGAN BYPASS CACHE
-  if (user && isAdminPage && !isUnauthorizedPage) {
-    const ownerOnlyPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
-    const isAccessingRestricted = ownerOnlyPaths.some(p => path.startsWith(p))
+  // 3. CEK ROLE DARI DATABASE VPS (Bukan Supabase)
+  if (user && isAdminPage && path !== '/admin/unauthorized') {
+    const restrictedPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
+    const isRestricted = restrictedPaths.some(p => path.startsWith(p))
 
-    if (isAccessingRestricted) {
-      // Kita tambahkan abortSignal atau query unik agar tidak kena cache Next.js
-      const { data: profile } = await supabase
-        .from('Profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+    if (isRestricted) {
+      try {
+        // Tembak API VPS Lokal
+        const vpsRes = await fetch(`${request.nextUrl.origin}/api/vps-db`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sql: 'SELECT role FROM public."Profiles" WHERE id = $1 LIMIT 1',
+            params: [user.id] 
+          })
+        })
+        
+        const result = await vpsRes.json()
+        const userRole = result.data?.[0]?.role?.toUpperCase()
 
-      const userRole = profile?.role?.toString().trim().toUpperCase()
-      
-      // LOGGING UNTUK DEBUGGING (Cek di terminal VS Code lu pas lu klik menu)
-      console.log(`DEBUG: User ${user.email} Role Terdeteksi: [${userRole}]`)
-
-      // IZINKAN JIKA SUPERADMIN ATAU OWNER
-      if (userRole !== 'SUPERADMIN' && userRole !== 'OWNER') {
-        console.log("RESULT: REDIRECT TO UNAUTHORIZED")
-        return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
+        // Validasi: Hanya OWNER atau SUPERADMIN yang boleh masuk
+        if (userRole !== 'SUPERADMIN' && userRole !== 'OWNER') {
+          return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
+        }
+      } catch (err) {
+        // Jika koneksi VPS bermasalah, demi keamanan lempar ke login
+        return NextResponse.redirect(new URL('/login', request.url))
       }
     }
   }

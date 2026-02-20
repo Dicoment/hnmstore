@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { MessageCircle, Save, Loader2, Info, Phone, FileText, Power } from 'lucide-react'
+import { MessageCircle, Save, Loader2, Info, Phone, FileText, Layout } from 'lucide-react'
 
 interface WAConfig {
   id: string
@@ -23,26 +22,26 @@ export default function WhatsAppAdminPage() {
   async function fetchConfig() {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('WhatsAppConfig')
-        .select('*')
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
+      // Ambil data dari VPS
+      const res = await fetch('/api/vps-db', {
+        method: 'POST',
+        body: JSON.stringify({ sql: 'SELECT * FROM public."WhatsAppConfig" LIMIT 1' })
+      })
+      const result = await res.json()
       
-      if (data) {
-        setConfig(data)
+      if (result.data && result.data.length > 0) {
+        setConfig(result.data[0])
       } else {
-        // Default config kalau belum ada di DB
+        // Default kalau database masih kosong
         setConfig({
           id: '',
-          phone_number: '628123456789',
-          template_message: 'Halo Admin HnM Store, saya mau pesan produk {produk} dengan harga {harga}. Apakah masih tersedia?',
+          phone_number: '6282138241048',
+          template_message: 'Halo Admin HnM Store, saya mau tanya produk {produk}. Apakah masih ready?',
           is_active: true
         })
       }
-    } catch (err: any) {
-      alert('Gagal ambil data: ' + err.message)
+    } catch (err) {
+      console.error("Gagal load config WA:", err)
     } finally {
       setLoading(false)
     }
@@ -54,17 +53,28 @@ export default function WhatsAppAdminPage() {
     setIsSaving(true)
 
     try {
-      const { error } = await supabase
-        .from('WhatsAppConfig')
-        .upsert({
-          id: config.id || undefined, // Supabase handle UUID auto if undefined
-          phone_number: config.phone_number,
-          template_message: config.template_message,
-          is_active: config.is_active
-        })
+      let sql = ''
+      let params: any[] = []
 
-      if (error) throw error
-      alert('Setting WA Berhasil Disimpan!')
+      if (!config.id) {
+        // INSERT kalau baru pertama kali
+        sql = `INSERT INTO public."WhatsAppConfig" (phone_number, template_message, is_active) VALUES ($1, $2, $3) RETURNING *`
+        params = [config.phone_number, config.template_message, config.is_active]
+      } else {
+        // UPDATE kalau sudah ada
+        sql = `UPDATE public."WhatsAppConfig" SET phone_number = $1, template_message = $2, is_active = $3 WHERE id = $4 RETURNING *`
+        params = [config.phone_number, config.template_message, config.is_active, config.id]
+      }
+
+      const res = await fetch('/api/vps-db', {
+        method: 'POST',
+        body: JSON.stringify({ sql, params })
+      })
+      const result = await res.json()
+
+      if (result.error) throw new Error(result.error)
+      
+      alert('Sip! Konfigurasi WhatsApp Berhasil Diupdate!')
       fetchConfig()
     } catch (err: any) {
       alert('Gagal simpan: ' + err.message)
@@ -74,105 +84,122 @@ export default function WhatsAppAdminPage() {
   }
 
   if (loading) return (
-    <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-white">
+      <Loader2 className="animate-spin text-black" size={40} />
+      <p className="text-xs font-black uppercase tracking-widest text-gray-400">Menghubungkan ke VPS...</p>
+    </div>
   )
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] font-sans text-black">
-      <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden rounded-xl mx-4 my-2 shadow-sm">
+    <div className="flex flex-col h-screen lg:h-[calc(100vh-140px)] font-sans text-black">
+      <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden lg:rounded-2xl lg:mx-4 lg:my-2 shadow-sm">
         
         {/* HEADER */}
-        <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-30">
-          <div className="flex justify-between items-center">
+        <div className="p-6 md:p-8 border-b border-gray-100 bg-white sticky top-0 z-30">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-xl font-black italic uppercase flex items-center gap-2">
-                <MessageCircle size={20} /> WhatsApp Settings
+              <h1 className="text-2xl font-black italic uppercase flex items-center gap-3 tracking-tighter">
+                <MessageCircle size={28} className="text-green-500" /> WhatsApp Control Center
               </h1>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Konfigurasi jalur pemesanan HnM Store</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1 italic">Atur Jalur Pemesanan Otomatis</p>
             </div>
-            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center gap-1.5 ${config?.is_active ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${config?.is_active ? 'bg-green-600 animate-pulse' : 'bg-red-600'}`} />
-              {config?.is_active ? 'Sistem Aktif' : 'Sistem Nonaktif'}
+            <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 ${config?.is_active ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+              <div className={`w-2 h-2 rounded-full ${config?.is_active ? 'bg-green-600 animate-pulse' : 'bg-red-600'}`} />
+              {config?.is_active ? 'Floating WA Aktif' : 'Floating WA Mati'}
             </div>
           </div>
         </div>
 
         {/* FORM CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-white custom-scrollbar">
-          <form onSubmit={handleSave} className="max-w-2xl mx-auto space-y-10">
+        <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-white custom-scrollbar">
+          <form onSubmit={handleSave} className="max-w-3xl mx-auto space-y-12">
             
-            {/* TOGGLE AKTIF/NONAKTIF */}
-            <div className="flex items-center justify-between p-6 bg-gray-50 border border-gray-100 rounded-xl">
-              <div>
-                <h3 className="font-black text-sm uppercase">Status Tombol Order</h3>
-                <p className="text-[10px] text-gray-400 font-bold">Aktifkan atau matikan tombol WA di landing page</p>
+            {/* TOGGLE STATUS */}
+            <div className={`flex items-center justify-between p-8 rounded-3xl border-2 transition-all duration-500 ${config?.is_active ? 'bg-green-50/50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+              <div className="flex items-center gap-4">
+                <div className={`p-4 rounded-2xl ${config?.is_active ? 'bg-green-500 text-white' : 'bg-gray-300 text-white'}`}>
+                    <Layout size={24} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base uppercase tracking-tight text-black">Tampilkan Floating Button</h3>
+                  <p className="text-xs text-gray-500 font-bold mt-1">Munculkan tombol WhatsApp melayang di pojok kanan bawah website.</p>
+                </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setConfig(prev => prev ? {...prev, is_active: !prev.is_active} : null)}
-                className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${config?.is_active ? 'bg-black' : 'bg-gray-200'}`}
+                className={`w-16 h-8 rounded-full p-1 transition-all duration-300 ${config?.is_active ? 'bg-black' : 'bg-gray-200'}`}
               >
-                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${config?.is_active ? 'translate-x-6' : 'translate-x-0'}`} />
+                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transition-transform ${config?.is_active ? 'translate-x-8' : 'translate-x-0'}`} />
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-10">
               {/* NOMOR WHATSAPP */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Phone size={12} /> Nomor WA Admin (Gunakan 62)
+              <div className="space-y-3">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                  <Phone size={16} className="text-black" /> Nomor WA Admin <span className="text-blue-500 italic">(Wajib awali 62)</span>
                 </label>
-                <input 
-                  type="text" 
-                  value={config?.phone_number}
-                  onChange={(e) => setConfig(prev => prev ? {...prev, phone_number: e.target.value} : null)}
-                  placeholder="Contoh: 628123456789"
-                  className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3.5 font-black text-sm outline-none focus:border-black transition-all"
-                />
+                <div className="relative group">
+                    <input 
+                      type="text" 
+                      value={config?.phone_number}
+                      onChange={(e) => setConfig(prev => prev ? {...prev, phone_number: e.target.value} : null)}
+                      placeholder="628xxxxxxxxxx"
+                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 font-black text-lg outline-none focus:border-black focus:bg-white transition-all text-black"
+                    />
+                </div>
               </div>
 
               {/* TEMPLATE PESAN */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <FileText size={12} /> Format Pesan Otomatis
+              <div className="space-y-3">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                  <FileText size={16} className="text-black" /> Template Pesan Otomatis
                 </label>
                 <textarea 
-                  rows={5}
+                  rows={6}
                   value={config?.template_message}
                   onChange={(e) => setConfig(prev => prev ? {...prev, template_message: e.target.value} : null)}
-                  className="w-full bg-white border border-gray-200 rounded-lg p-4 font-bold text-sm outline-none focus:border-black transition-all resize-none"
+                  className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-6 font-bold text-base outline-none focus:border-black focus:bg-white transition-all resize-none text-black"
+                  placeholder="Ketik format pesan di sini..."
                 />
                 
                 {/* INFO PLACEHOLDER */}
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 flex gap-3">
-                  <Info size={16} className="text-gray-400 shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase text-gray-500">Gunakan Shortcut Tag:</p>
+                <div className="p-6 bg-blue-50 rounded-2xl border-2 border-blue-100 flex gap-4">
+                  <Info size={20} className="text-blue-500 shrink-0" />
+                  <div className="space-y-2">
+                    <p className="text-xs font-black uppercase text-blue-900 tracking-wider">Gunakan Shortcode Dinamis:</p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="text-[9px] bg-white border px-2 py-0.5 rounded font-black text-black">{"{produk}"}</span>
-                      <span className="text-[9px] bg-white border px-2 py-0.5 rounded font-black text-black">{"{harga}"}</span>
-                      <span className="text-[9px] bg-white border px-2 py-0.5 rounded font-black text-black">{"{link}"}</span>
+                      <span className="text-[11px] bg-white border-2 border-blue-200 px-3 py-1 rounded-xl font-black text-blue-600 shadow-sm hover:scale-105 transition-transform cursor-default">{"{produk}"}</span>
+                      <span className="text-[11px] bg-white border-2 border-blue-200 px-3 py-1 rounded-xl font-black text-blue-600 shadow-sm hover:scale-105 transition-transform cursor-default">{"{harga}"}</span>
+                      <span className="text-[11px] bg-white border-2 border-blue-200 px-3 py-1 rounded-xl font-black text-blue-600 shadow-sm hover:scale-105 transition-transform cursor-default">{"{link}"}</span>
                     </div>
+                    <p className="text-xs font-bold text-blue-400 mt-2 italic">Tag di atas akan otomatis terganti dengan detail sepatu yang diklik user.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* BUTTON SAVE */}
-            <div className="pt-4">
+            <div className="pt-6 pb-12">
               <button 
                 type="submit" 
                 disabled={isSaving}
-                className="w-full bg-black text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-zinc-800 transition-all active:scale-95 disabled:bg-gray-300"
+                className="w-full bg-black text-white py-6 rounded-[28px] font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center gap-3 shadow-2xl hover:bg-zinc-800 transition-all active:scale-95 disabled:bg-gray-300"
               >
-                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                Simpan Konfigurasi
+                {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                Update Konfigurasi WA
               </button>
             </div>
 
           </form>
         </div>
       </div>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #000; border-radius: 10px; }
+      `}</style>
     </div>
   )
 }

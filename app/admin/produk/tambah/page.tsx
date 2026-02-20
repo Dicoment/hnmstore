@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect, ChangeEvent } from "react"
-import { supabase } from "@/lib/supabase"
+
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { 
-  Upload, Plus, Trash2, Save, Send, Image as ImageIcon, Loader2, X 
+  Upload, Plus, Trash2, Send, Image as ImageIcon, Loader2, X, Search, CheckCircle2, PackagePlus
 } from "lucide-react"
 
 interface Brand { id: string; name: string }
@@ -15,6 +15,7 @@ export default function TambahProdukPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [models, setModels] = useState<Model[]>([])
   const [sizes, setSizes] = useState<Size[]>([])
+  const [existingImages, setExistingImages] = useState<string[]>([]) 
 
   const [name, setName] = useState('') 
   const [description, setDescription] = useState('')
@@ -22,261 +23,309 @@ export default function TambahProdukPage() {
   const [modelId, setModelId] = useState('')
   const [priceRegular, setPriceRegular] = useState<number | ''>('')
   const [pricePromo, setPricePromo] = useState<number | ''>('')
-  const [images, setImages] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  
+  const [imageUrls, setImageUrls] = useState<string[]>([])
   const [sizeStocks, setSizeStocks] = useState<ProductSizeStock[]>([])
   const [loading, setLoading] = useState(false)
-  
-  // State tambahan hanya untuk visual drag & drop
   const [isDragging, setIsDragging] = useState(false)
+  const [showMediaModal, setShowMediaModal] = useState(false)
 
   useEffect(() => {
-    fetchBrands(); fetchModels(); fetchSizes()
+    fetchInitialData()
   }, [])
 
-  async function fetchBrands() {
-    const { data } = await supabase.from('Brand').select('*')
-    if (data) setBrands(data)
-  }
+  async function fetchInitialData() {
+    const query = (table: string) => JSON.stringify({ sql: `SELECT * FROM public."${table}" ORDER BY name ASC` })
+    try {
+      const [bRes, mRes, sRes, imgRes] = await Promise.all([
+        fetch('/api/vps-db', { method: 'POST', body: query('Brand') }).then(r => r.json()),
+        fetch('/api/vps-db', { method: 'POST', body: query('Model') }).then(r => r.json()),
+        fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql: `SELECT * FROM public."Size" ORDER BY value ASC` }) }).then(r => r.json()),
+        fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql: `SELECT unnest(images) as url FROM public."Product" LIMIT 100` }) }).then(r => r.json())
+      ])
 
-  async function fetchModels() {
-    const { data } = await supabase.from('Model').select('*')
-    if (data) setModels(data)
-  }
-
-  async function fetchSizes() {
-    const { data } = await supabase.from('Size').select('*')
-    if (data) setSizes(data)
-  }
-
-  // --- LOGIC IMAGE BAWAAN LO ---
-  const processFiles = (filesArray: File[]) => {
-    const validFiles = filesArray.filter(file => {
-      if (file.size > 153600) { // 1.5 MB = 1536000 bytes
-        alert(`File ${file.name} kegedean! Harus di bawah 1 MB.`)
-        return false
-      }
-      return true
-    })
-    setImages(prev => [...prev, ...validFiles])
-    setImagePreviews(prev => [...prev, ...validFiles.map(f => URL.createObjectURL(f))])
-  }
-
-  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files) return
-    processFiles(Array.from(e.target.files))
-  }
-
-  // UI Helper Drag & Drop
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setIsDragging(false)
-    if (e.dataTransfer.files) processFiles(Array.from(e.dataTransfer.files))
-  }
-
-  function removeImage(index: number) {
-    setImages(images.filter((_, i) => i !== index))
-    setImagePreviews(imagePreviews.filter((_, i) => i !== index))
-  }
-
-  function handleAddSizeStock() {
-    setSizeStocks([...sizeStocks, { sizeId: '', stock: '' }])
-  }
-
-  function handleSizeChange(index: number, field: 'sizeId' | 'stock', value: string | number) {
-    const newStocks = [...sizeStocks]
-    if (field === 'stock') {
-      newStocks[index] = { ...newStocks[index], stock: value === '' ? '' : Number(value) }
-    } else {
-      newStocks[index] = { ...newStocks[index], sizeId: value as string }
+      setBrands(bRes.data || [])
+      setModels(mRes.data || [])
+      setSizes(sRes.data || [])
+      const uniqueImgs: string[] = Array.from(new Set((imgRes.data || []).map((i: any) => i.url)))
+      setExistingImages(uniqueImgs)
+    } catch (err) {
+      console.error("Gagal load data:", err)
     }
-    setSizeStocks(newStocks)
+  }
+
+  const handleUpload = async (files: File[]) => {
+    setLoading(true);
+    try {
+      const uploadedUrls: string[] = []; 
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'products');
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.url) uploadedUrls.push(data.url);
+      }
+      setImageUrls(prev => [...prev, ...uploadedUrls]);
+    } catch (err) {
+      alert("Gagal upload!");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); 
+    setIsDragging(false)
+    if (e.dataTransfer.files) handleUpload(Array.from(e.dataTransfer.files))
   }
 
   function createSlug(text: string) {
     return text.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]+/g, '')
   }
 
-  // LOGIKA ASLI 100% - TIDAK ADA PERUBAHAN NAMA KEY PAYLOAD
   async function handleSubmit(draft = false) {
     if (!name || !brandId || !modelId || !priceRegular) {
-      alert('Mohon lengkapi Nama Produk, Brand, Model, dan Harga')
+      alert('Lengkapi Nama, Brand, Model, dan Harga dulu!')
       return
     }
     setLoading(true)
 
     try {
-      const uploadedUrls: string[] = []
-      for (const file of images) {
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-        const { error } = await supabase.storage.from('ProductImage').upload(fileName, file)
-        if (error) throw error
-        const { data: { publicUrl } } = supabase.storage.from('ProductImage').getPublicUrl(fileName)
-        uploadedUrls.push(publicUrl)
-      }
+      const productQuery = `
+        INSERT INTO public."Product" 
+        (name, slug, description, "brandId", "modelId", price, price_regular, price_promo, images, draft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id
+      `;
 
-      const payload = {
-        name, 
-        slug: createSlug(name) || `p-${Date.now()}`,
-        description,
-        brandId: brandId, brand_id: brandId,     
-        modelId: modelId, model_id: modelId,     
-        price: Number(priceRegular), price_regular: Number(priceRegular),
-        price_promo: pricePromo ? Number(pricePromo) : null,
-        images: uploadedUrls,
-        draft: draft
-      }
+      const params = [
+        name, createSlug(name), description, brandId, modelId, 
+        Number(priceRegular), Number(priceRegular), 
+        pricePromo ? Number(pricePromo) : null,
+        imageUrls, draft
+      ]
 
-      const { data: productData, error: productError } = await supabase.from('Product').insert([payload]).select()
-      if (productError) throw productError
+      const res = await fetch('/api/vps-db', {
+        method: 'POST',
+        body: JSON.stringify({ sql: productQuery, params })
+      })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
 
-      const productId = productData?.[0]?.id
-      if (productId && sizeStocks.length) {
-        const stocksToInsert = sizeStocks
-          .filter(ss => ss.sizeId && ss.stock !== '')
-          .map(ss => ({
-            productId: productId, sizeId: ss.sizeId, stock: Number(ss.stock)
-          }))
-        if (stocksToInsert.length > 0) {
-          const { error: stockError } = await supabase.from('ProductSizeStock').insert(stocksToInsert)
-          if (stockError) throw stockError
+      const productId = result.data[0].id
+
+      if (productId && sizeStocks.length > 0) {
+        for (const ss of sizeStocks) {
+          if (ss.sizeId && ss.stock !== '') {
+            await fetch('/api/vps-db', {
+              method: 'POST',
+              body: JSON.stringify({
+                sql: `INSERT INTO public."ProductSizeStock" ("productId", "sizeId", stock) VALUES ($1, $2, $3)`,
+                params: [productId, ss.sizeId, Number(ss.stock)]
+              })
+            })
+          }
         }
       }
 
-      alert(draft ? 'Draft berhasil disimpan!' : 'Produk berhasil diterbitkan!')
-      resetForm()
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
-      alert('Error: ' + message)
+      alert(draft ? 'Draft tersimpan!' : 'Produk On-Air!')
+      window.location.href = '/admin/produk'
+    } catch (err: any) {
+      alert('Gagal: ' + err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  function resetForm() {
-    setName(''); setDescription(''); setBrandId(''); setModelId('')
-    setPriceRegular(''); setPricePromo(''); setImages([]); setImagePreviews([])
-    setSizeStocks([])
-  }
-
   return (
-    <div className="flex flex-col h-screen] font-sans text-black">
-      <div className="flex flex-col flex-1 bg-white border border-gray-100 overflow-hidden rounded-lg  shadow-sm">
-        
-        {/* HEADER */}
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
-          <div>
-            <h1 className="text-xl font-black italic tracking-tighter uppercase flex items-center gap-2 text-black">
-              <ImageIcon size={20} /> Tambah Produk
-            </h1>
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Inventory Management</p>
+    <div className="flex flex-col min-h-screen font-sans text-black bg-[#FBFBFB]">
+      
+      {/* MEDIA MODAL */}
+      {showMediaModal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowMediaModal(false)} />
+          <div className="relative bg-white w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="p-6 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <h3 className="font-black uppercase   tracking-tighter text-lg">Gudang Media VPS</h3>
+              <button onClick={() => setShowMediaModal(false)} className="hover:rotate-90 transition-transform"><X size={24}/></button>
+            </div>
+            <div className="p-4 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-3 bg-gray-50">
+              {existingImages.map((url, i) => (
+                <div 
+                  key={i} 
+                  className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-4 transition-all duration-300 ${imageUrls.includes(url) ? 'border-black scale-95' : 'border-transparent hover:border-gray-300'}`}
+                  onClick={() => imageUrls.includes(url) ? setImageUrls(imageUrls.filter(u => u !== url)) : setImageUrls([...imageUrls, url])}
+                >
+                  <Image src={url} fill className="object-cover" alt="m" unoptimized />
+                  {imageUrls.includes(url) && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center animate-in fade-in zoom-in">
+                      <CheckCircle2 className="text-white" size={32} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => handleSubmit(true)} disabled={loading} className="px-5 py-2.5 bg-gray-50 text-gray-600 rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-gray-100">
-              Draft
-            </button>
-            <button onClick={() => handleSubmit(false)} disabled={loading} className="px-8 py-2.5 bg-black text-white rounded-md font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-xl active:scale-95 transition-all">
-              {loading ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />} Terbitkan
+        </div>
+      )}
+
+      {/* HEADER SECTION */}
+      <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-black   uppercase flex items-center gap-3 tracking-tighter">
+              <PackagePlus size={28} className="text-black" /> Produk Baru
+            </h1>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Tambahkan Produk Baru</p>
+          </div>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button onClick={() => handleSubmit(true)} disabled={loading} className="flex-1 sm:flex-none px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">DRAFT</button>
+            <button onClick={() => handleSubmit(false)} disabled={loading} className="flex-1 sm:flex-none px-10 py-3 bg-black text-white rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 shadow-xl hover:bg-zinc-800 transition-all active:scale-95">
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />} TERBITKAN
             </button>
           </div>
         </div>
+      </div>
 
-        {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar bg-white">
-          <div className="max-w-full mx-auto flex flex-col lg:flex-row gap-8 pb-10">
-            
-            <div className="flex-1 space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Galeri Foto Produk</label>
-                <div 
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={handleDrop}
-                  className={`grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-2 border-dashed rounded-lg transition-all ${isDragging ? 'border-black bg-gray-50' : 'border-gray-200 bg-white'}`}
-                >
-                  {imagePreviews.map((src, i) => (
-                    <div key={i} className="relative aspect-square rounded-md overflow-hidden border border-gray-100 bg-white">
-                      <Image src={src} fill className="object-cover" alt="preview" unoptimized />
-                      <button onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-black text-white p-1 rounded-md active:scale-90 shadow-md"><Trash2 size={12} /></button>
-                    </div>
-                  ))}
-                  <label className="aspect-square flex flex-col items-center justify-center border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 transition-all group bg-white">
-                    <Upload size={18} className="text-gray-400 group-hover:text-black" />
-                    <span className="text-[8px] text-gray-400 font-black uppercase mt-2 group-hover:text-black">Upload</span>
-                    <input type="file" multiple onChange={handleImageChange} className="hidden" />
-                  </label>
+      {/* MAIN FORM */}
+      <div className="flex-1 p-4 sm:p-10">
+        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-10">
+          
+          {/* KIRI: INFO DASAR */}
+          <div className="flex-1 space-y-10">
+            {/* DRAG & DROP AREA */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest  ">Product Gallery</label>
+                <button onClick={() => setShowMediaModal(true)} className="text-xs font-black text-blue-600 border-b-2 border-blue-600 pb-0.5 hover:text-black hover:border-black transition-all uppercase">Buka Media</button>
+              </div>
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 border-2 border-dashed rounded-xl transition-all duration-500 ${isDragging ? 'border-black bg-zinc-100 scale-[1.01]' : 'border-gray-200 bg-white'}`}
+              >
+                {imageUrls.map((src, i) => (
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden border-2 border-gray-100 group shadow-md transition-transform hover:scale-105">
+                    <Image src={src} fill className="object-cover" alt="preview" unoptimized />
+                    <button onClick={() => setImageUrls(imageUrls.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 bg-black text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                
+                <label className="aspect-square flex flex-col items-center justify-center border-2 border-gray-100 rounded-xl cursor-pointer hover:bg-zinc-50 bg-white group transition-all">
+                  <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-black group-hover:text-white transition-all">
+                    <Upload size={24} />
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-black uppercase mt-3 tracking-widest group-hover:text-black">Upload File</span>
+                  <input type="file" multiple onChange={(e) => e.target.files && handleUpload(Array.from(e.target.files))} className="hidden" />
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 bg-white p-8 rounded-xl border border-gray-100 shadow-sm">
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1  ">Nama Sepatu</label>
+                <input type="text" placeholder="Masukkan Nama Produk..." value={name} onChange={e => setName(e.target.value)} className="w-full border-b-2 border-gray-100 focus:border-black py-4 outline-none font-black text-2xl bg-transparent uppercase transition-all" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase px-1">Brand</label>
+                  <select value={brandId} onChange={e => setBrandId(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-xl px-4 py-4 font-black text-xs uppercase outline-none transition-all cursor-pointer">
+                    <option value="">Pilih Brand</option>
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase px-1">Model / Kategori</label>
+                  <select value={modelId} onChange={e => setModelId(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-xl px-4 py-4 font-black text-xs uppercase outline-none transition-all cursor-pointer">
+                    <option value="">Pilih Model</option>
+                    {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
                 </div>
               </div>
 
-              <div className="space-y-5">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Nama Produk</label>
-                  <input type="text" placeholder="Nama Produk .." value={name} onChange={e => setName(e.target.value)} className="w-full border border-gray-200 rounded-md px-4 py-3 outline-none focus:border-black font-medium text-black bg-white" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Deskripsi</label>
-                  <textarea rows={4} placeholder="Detail produk..." value={description} onChange={e => setDescription(e.target.value)} className="w-full border border-gray-200 rounded-md px-4 py-3 outline-none focus:border-black font-medium text-black bg-white" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Brand</label>
-                    <select value={brandId} onChange={e => setBrandId(e.target.value)} className="w-full border border-gray-200 rounded-md px-3 py-3 outline-none font-black uppercase text-[11px] bg-white text-black cursor-pointer">
-                      <option value="">Pilih Brand</option>
-                      {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1  ">Deskripsi Produk</label>
+                <textarea rows={5} placeholder="Tulis spesifikasi atau detail produk di sini..." value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-xl p-5 outline-none font-medium text-sm text-gray-700 transition-all resize-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* KANAN: PRICING & INVENTORY */}
+          <div className="lg:w-96 space-y-8">
+            
+            {/* PRICING CARD */}
+            <div className="p-8 bg-black text-white rounded-xl shadow-2xl space-y-8 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-150 transition-transform duration-1000">
+                <ImageIcon size={100} />
+              </div>
+              <h3 className="text-xs font-black uppercase tracking-[0.3em]   border-b border-white/20 pb-4">Harga</h3>
+              
+              <div className="space-y-6 relative z-10">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase">Regular Price</label>
+                  <div className="relative">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 font-black text-xl text-zinc-600">Rp</span>
+                    <input type="number" value={priceRegular} onChange={e => setPriceRegular(e.target.value === '' ? '' : Number(e.target.value))} className="w-full bg-transparent border-b-2 border-zinc-800 focus:border-white py-2 pl-10 outline-none font-black text-2xl" placeholder="0" />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Model</label>
-                    <select value={modelId} onChange={e => setModelId(e.target.value)} className="w-full border border-gray-200 rounded-md px-3 py-3 outline-none font-black uppercase text-[11px] bg-white text-black cursor-pointer">
-                      <option value="">Pilih Model</option>
-                      {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-red-500 uppercase  ">Sale Price (Optional)</label>
+                  <div className="relative">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 font-black text-xl text-red-900">Rp</span>
+                    <input type="number" value={pricePromo} onChange={e => setPricePromo(e.target.value === '' ? '' : Number(e.target.value))} className="w-full bg-transparent border-b-2 border-zinc-800 focus:border-red-600 py-2 pl-10 outline-none font-black text-2xl text-red-500" placeholder="0" />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="lg:w-80 space-y-6">
-              <div className="p-6 border-2 border-black rounded-xl bg-white shadow-sm">
-                <h3 className="text-[10px] font-black uppercase mb-4 tracking-widest">Penetapan Harga</h3>
-                <div className="space-y-4">
-                  <div className="relative">
-                    <span className="absolute left-3 top-3 text-[10px] font-black text-gray-400">Rp</span>
-                    <input type="number" value={priceRegular} onChange={e => setPriceRegular(e.target.value === '' ? '' : Number(e.target.value))} className="w-full border border-gray-200 rounded-md pl-9 pr-4 py-3 outline-none focus:border-black font-black text-lg text-black bg-white" placeholder="Harga Jual" />
-                  </div>
-                  <div className="relative">
-                    <span className="absolute left-3 top-3 text-[10px] font-black text-gray-400">Rp</span>
-                    <input type="number" value={pricePromo} onChange={e => setPricePromo(e.target.value === '' ? '' : Number(e.target.value))} className="w-full border border-gray-200 rounded-md pl-9 pr-4 py-3 outline-none focus:border-black font-black text-lg text-red-600 bg-white" placeholder="Promo" />
-                  </div>
-                </div>
+            {/* INVENTORY CARD */}
+            <div className="p-8 bg-white border border-gray-100 rounded-xl shadow-sm space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase tracking-widest  ">Stock & Size</h3>
+                <button type="button" onClick={() => setSizeStocks([...sizeStocks, { sizeId: '', stock: '' }])} className="bg-black text-white p-2 rounded-lg hover:scale-110 active:scale-90 transition-all shadow-lg"><Plus size={18} /></button>
               </div>
-
-              <div className="p-6 border border-gray-200 rounded-xl bg-white space-y-5 shadow-sm">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Size & Stock</h3>
-                  <button type="button" onClick={handleAddSizeStock} className="text-black border border-black p-1 rounded-md hover:bg-black hover:text-white transition-all active:scale-90">
-                    <Plus size={14} />
-                  </button>
-                </div>
-                <div className="space-y-2.5">
-                  {sizeStocks.map((ss, idx) => (
-                    <div key={idx} className="flex items-center gap-2 animate-in slide-in-from-right duration-300">
-                      <select value={ss.sizeId} onChange={e => handleSizeChange(idx, 'sizeId', e.target.value)} className="flex-1 border border-gray-200 rounded-md px-2 py-2 font-black text-[10px] bg-white text-black cursor-pointer">
-                        <option value="">Size</option>
-                        {sizes.map(s => <option key={s.id} value={s.id}>{s.value}</option>)}
-                      </select>
-                      <input type="number" placeholder="0" value={ss.stock} onChange={e => handleSizeChange(idx, 'stock', e.target.value)} className="w-16 border border-gray-200 rounded-md px-2 py-2 font-black text-[10px] bg-white text-black" />
-                      <button type="button" onClick={() => setSizeStocks(sizeStocks.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 transition-colors"><X size={14} /></button>
-                    </div>
-                  ))}
-                  {sizeStocks.length === 0 && <p className="text-[10px] text-gray-300 italic text-center py-2 uppercase font-black">Tambah Size Dulu</p>}
-                </div>
+              
+              <div className="space-y-4">
+                {sizeStocks.map((ss, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 animate-in zoom-in duration-300">
+                    <select value={ss.sizeId} onChange={e => {
+                      const n = [...sizeStocks]; n[idx].sizeId = e.target.value; setSizeStocks(n);
+                    }} className="flex-1 bg-white border-2 border-transparent focus:border-black rounded-lg px-3 py-2.5 font-black text-xs text-black outline-none shadow-sm appearance-none">
+                      <option value="">SIZE</option>
+                      {sizes.map(s => <option key={s.id} value={s.id}>{s.value}</option>)}
+                    </select>
+                    <input type="number" placeholder="QTY" value={ss.stock} onChange={e => {
+                      const n = [...sizeStocks]; n[idx].stock = e.target.value === '' ? '' : Number(e.target.value); setSizeStocks(n);
+                    }} className="w-20 bg-white border-2 border-transparent focus:border-black rounded-lg px-3 py-2.5 font-black text-xs text-black outline-none shadow-sm" />
+                    <button type="button" onClick={() => setSizeStocks(sizeStocks.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 transition-colors"><X size={20}/></button>
+                  </div>
+                ))}
+                
+                {sizeStocks.length === 0 && (
+                  <div className="text-center py-10 border-2 border-dotted border-gray-100 rounded-xl">
+                    <p className="text-[11px] text-gray-300 font-black uppercase tracking-widest   leading-relaxed">Pencet Tombol + <br/> Buat Tambah Stok Size</p>
+                  </div>
+                )}
               </div>
             </div>
 
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #000; border-radius: 10px; }
+      `}</style>
     </div>
   )
 }

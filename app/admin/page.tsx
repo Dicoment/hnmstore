@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import { 
   TrendingUp, 
   Package, 
@@ -9,7 +8,8 @@ import {
   AlertTriangle,
   History,
   ArrowRight,
-  BarChart3
+  BarChart3,
+  Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -34,50 +34,56 @@ export default function DashboardPage() {
       const today = new Date(); today.setHours(0, 0, 0, 0)
       const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(today.getDate() - 6)
 
-      // 1. Fetch Transaksi Hari Ini
-      const { data: txData } = await supabase
-        .from('Transactions')
-        .select('total, items_count')
-        .eq('status', 'SUCCESS')
-        .gte('created_at', today.toISOString())
+      // 1. QUERY GABUNGAN (OMZET, LOW STOCK, RECENT LOGS, WEEKLY CHART)
+      const sql = `
+        SELECT 
+          (SELECT json_agg(t.*) FROM public."Transactions" t 
+           WHERE t.status = 'SUCCESS' AND t.created_at >= $1) as daily_tx,
+          (SELECT count(*) FROM public."ProductSizeStock" WHERE stock < 3 AND stock > 0) as low_stock_count,
+          (SELECT json_agg(logs.*) FROM (
+             SELECT sl.*, p.full_name as admin_name 
+             FROM public."StockLog" sl 
+             LEFT JOIN public."Profiles" p ON sl.created_by = p.id 
+             ORDER BY sl.created_at DESC LIMIT 5
+          ) logs) as recent_logs,
+          (SELECT json_agg(tx_week.*) FROM (
+             SELECT total, created_at FROM public."Transactions" 
+             WHERE status = 'SUCCESS' AND created_at >= $2
+          ) tx_week) as weekly_tx
+      `
+      
+      const res = await fetch('/api/vps-db', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          sql, 
+          params: [today.toISOString(), sevenDaysAgo.toISOString()] 
+        })
+      })
+      
+      const { data } = await res.json()
+      const db = data[0]
 
-      // 2. Fetch Stok Tipis (< 3)
-      const { count: lowStockCount } = await supabase
-        .from('ProductSizeStock')
-        .select('*', { count: 'exact', head: true })
-        .lt('stock', 3)
-        .gt('stock', 0)
-
-      // 3. Fetch History Terbaru dari StockLog
-      const { data: logs } = await supabase
-        .from('StockLog')
-        .select('*, Profiles(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      // 4. Fetch Penjualan 7 Hari Terakhir untuk Grafik
-      const { data: last7Days } = await supabase
-        .from('Transactions')
-        .select('total, created_at')
-        .eq('status', 'SUCCESS')
-        .gte('created_at', sevenDaysAgo.toISOString())
-
-      // Proses Data Grafik biar batangnya naik
-      const chartData = processWeeklyChart(last7Days || [])
-      setWeeklyData(chartData)
-
-      const totalOmzet = txData?.reduce((sum, tx) => sum + tx.total, 0) || 0
-      const totalSold = txData?.reduce((sum, tx) => sum + tx.items_count, 0) || 0
+      // 2. PROSES STATS HARIAN
+      const dailyTransactions = db.daily_tx || []
+      const totalOmzet = dailyTransactions.reduce((sum: number, tx: any) => sum + Number(tx.total || 0), 0)
+      const totalSold = dailyTransactions.reduce((sum: number, tx: any) => sum + Number(tx.items_count || 0), 0)
 
       setStats({
         omzet: totalOmzet,
-        orders: txData?.length || 0,
+        orders: dailyTransactions.length,
         soldItems: totalSold,
-        lowStock: lowStockCount || 0
+        lowStock: Number(db.low_stock_count || 0)
       })
-      setRecentLogs(logs || [])
+
+      // 3. PROSES LOG TERBARU
+      setRecentLogs(db.recent_logs || [])
+
+      // 4. PROSES GRAFIK MINGGUAN
+      const chartData = processWeeklyChart(db.weekly_tx || [])
+      setWeeklyData(chartData)
+
     } catch (err) {
-      console.error(err)
+      console.error("Gagal load dashboard:", err)
     } finally {
       setLoading(false)
     }
@@ -92,48 +98,52 @@ export default function DashboardPage() {
       const dayName = days[date.getDay()]
       const dayTotal = data
         .filter(tx => new Date(tx.created_at).toDateString() === date.toDateString())
-        .reduce((sum, tx) => sum + tx.total, 0)
+        .reduce((sum, tx) => sum + Number(tx.total || 0), 0)
       result.push({ label: dayName, value: dayTotal })
     }
     return result
   }
 
-  // LOGIC FIX: Cari nilai tertinggi buat pembanding grafik (height)
   const currentMax = Math.max(...weeklyData.map(d => d.value), 0)
   const maxOmzet = currentMax === 0 ? 1 : currentMax
 
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <Loader2 className="animate-spin text-black" size={40} />
+      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">Loading Terminal...</p>
+    </div>
+  )
+
   return (
-    <div className="space-y-6  text-black">
+    <div className="space-y-6 text-black font-sans">
       
-      {/* 1. STATS GRID RESPONSIVE */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:gap-4">
-        <StatCard label="Omzet Hari Ini" value={`Rp ${stats.omzet.toLocaleString()}`} icon={<TrendingUp size={20} className="text-green-500 " />} color="bg-green-50" />
-        <StatCard label="Order Berhasil" value={`${stats.orders} Order`} icon={<ShoppingCart size={20} className="text-blue-500" />} color="bg-blue-50" />
-        <StatCard label="Sepatu Terjual" value={`${stats.soldItems} Psg`} icon={<Package size={20} className="text-purple-500" />} color="bg-purple-50" />
-        <StatCard label="Stok Tipis" value={`${stats.lowStock} Item`} icon={<AlertTriangle size={20} className="text-red-500" />} color="bg-red-50" />
+      {/* 1. STATS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Omzet Hari Ini" value={`Rp ${stats.omzet.toLocaleString()}`} icon={<TrendingUp size={20} />} color="bg-green-500" textColor="text-green-600" />
+        <StatCard label="Order Berhasil" value={`${stats.orders} TRX`} icon={<ShoppingCart size={20} />} color="bg-blue-500" textColor="text-blue-600" />
+        <StatCard label="Barang Terjual" value={`${stats.soldItems} Unit`} icon={<Package size={20} />} color="bg-zinc-900" textColor="text-zinc-900" />
+        <StatCard label="Stok Kritis" value={`${stats.lowStock} Item`} icon={<AlertTriangle size={20} />} color="bg-red-500" textColor="text-red-600" />
       </div>
 
-      {/* 2. CHART - SEKARANG BATANGNYA NAIK */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 lg:p-6">
-        <h2 className="text-[14px] font-black uppercase tracking-tight flex items-center gap-2 mb-10">
-          <BarChart3 size={18} /> Tren Penjualan 7 Hari Terakhir
+      {/* 2. CHART SECTION */}
+      <div className="bg-white border-2 border-zinc-100 rounded-xl p-6 shadow-sm">
+        <h2 className="text-[12px] font-black uppercase tracking-widest flex items-center gap-3 mb-12">
+          <BarChart3 size={18} strokeWidth={2.5} /> Penjualan 7 Hari Terakhir
         </h2>
         
-        <div className="h-40 md:h-56 flex items-end justify-between gap-1 md:gap-4 px-1">
+        <div className="h-56 flex items-end justify-between gap-2 md:gap-6 px-2">
           {weeklyData.map((day, idx) => (
-            <div key={idx} className="flex-1 flex flex-col items-center gap-3 group relative">
-              {/* Tooltip Label pas di-hover */}
-              <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] font-black py-1 px-2 rounded whitespace-nowrap z-10 hidden md:block uppercase">
+            <div key={idx} className="flex-1 flex flex-col items-center gap-4 group relative">
+              <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-all bg-black text-white text-[9px] font-black py-1.5 px-3 rounded-lg whitespace-nowrap z-10 uppercase tracking-tighter">
                 Rp {day.value.toLocaleString()}
               </div>
               
-              {/* Batang Grafik */}
               <div 
-                className={`w-full max-w-12 rounded-t-md transition-all duration-700 ease-out shadow-sm ${idx === 6 ? 'bg-black' : 'bg-gray-100 group-hover:bg-gray-200'}`}
-                style={{ height: `${(day.value / maxOmzet) * 100}%`, minHeight: '4px' }}
+                className={`w-full max-w-12 rounded-t-lg transition-all duration-1000 ease-out ${idx === 6 ? 'bg-black shadow-lg shadow-black/20' : 'bg-zinc-100 group-hover:bg-zinc-200'}`}
+                style={{ height: `${(day.value / maxOmzet) * 100}%`, minHeight: '6px' }}
               />
               
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{day.label}</span>
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{day.label}</span>
             </div>
           ))}
         </div>
@@ -141,28 +151,31 @@ export default function DashboardPage() {
 
       {/* 3. LOWER SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-50 flex justify-between items-center">
-            <h2 className="text-[14px] font-black uppercase tracking-tight flex items-center gap-2">
-              <History size={18} /> Aktivitas Stok Terbaru
+        {/* LOG AKTIVITAS */}
+        <div className="lg:col-span-2 bg-white border-2 border-zinc-100 rounded-xl shadow-sm overflow-hidden">
+          <div className="p-5 border-b-2 border-zinc-50 flex justify-between items-center bg-zinc-50/30">
+            <h2 className="text-[12px] font-black uppercase tracking-widest flex items-center gap-3">
+              <History size={18} strokeWidth={2.5} /> Log Mutasi Terbaru
             </h2>
-            <Link href="/admin/stok/history" className="text-[11px] font-bold text-gray-400 hover:text-black uppercase transition-colors">Lihat Semua</Link>
+            <Link href="/admin/stok/history" className="text-[9px] font-black bg-black text-white px-3 py-1.5 rounded-lg uppercase tracking-widest hover:bg-zinc-800 transition-all">Lihat Semua</Link>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y-2 divide-zinc-50">
             {recentLogs.length === 0 ? (
-              <div className="p-10 text-center text-[12px] font-bold text-gray-300 uppercase tracking-widest italic">Belum Ada Aktivitas</div>
+              <div className="p-20 text-center text-[10px] font-black text-zinc-300 uppercase tracking-widest">Belum Ada Aktivitas</div>
             ) : recentLogs.map((log) => (
-              <div key={log.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg ${log.type === 'MASUK' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                    {log.type === 'MASUK' ? <Package size={16} /> : <ShoppingCart size={16} />}
+              <div key={log.id} className="p-5 flex items-center justify-between hover:bg-zinc-50 transition-all group">
+                <div className="flex items-center gap-5">
+                  <div className={`p-3 rounded-xl border-2 ${log.type === 'MASUK' ? 'bg-green-50 border-green-100 text-green-600' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
+                    {log.type === 'MASUK' ? <Package size={18} /> : <ShoppingCart size={18} />}
                   </div>
                   <div>
-                    <p className="text-[12px] font-black uppercase leading-tight truncate max-w-37 md:max-w-none">{log.product_name}</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Size {log.size_value} • {log.type} oleh {log.Profiles?.full_name || 'Admin'}</p>
+                    <p className="text-xs font-black uppercase tracking-tight group-hover:translate-x-1 transition-transform">{log.product_name}</p>
+                    <p className="text-[9px] font-bold text-zinc-400 uppercase mt-1 tracking-wider">
+                      Size {log.size_value} • {log.type} oleh {log.admin_name || log.notes || 'System'}
+                    </p>
                   </div>
                 </div>
-                <div className={`text-right font-black text-[12px] ${log.new_stock > log.old_stock ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-right font-black text-sm ${log.new_stock > log.old_stock ? 'text-green-600' : 'text-red-600'}`}>
                   {log.new_stock > log.old_stock ? `+${log.new_stock - log.old_stock}` : log.new_stock - log.old_stock}
                 </div>
               </div>
@@ -171,17 +184,22 @@ export default function DashboardPage() {
         </div>
 
         {/* QUICK ACTIONS */}
-        <div className="bg-black text-white p-6 rounded-2xl shadow-xl h-fit">
-          <h2 className="text-[14px] font-black uppercase mb-4 tracking-widest">Aksi Cepat</h2>
-          <div className="grid grid-cols-1 gap-2 text-black">
-            <Link href="/admin/pos" className="flex items-center justify-between p-4 bg-white hover:bg-gray-100 rounded-xl transition-all group">
-              <span className="text-[11px] font-black uppercase tracking-tight">Buka Kasir</span>
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link href="/admin/produk/tambah" className="flex items-center justify-between p-4 bg-white hover:bg-gray-100 rounded-xl transition-all group">
-              <span className="text-[11px] font-black uppercase tracking-tight">Tambah Barang</span>
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
+        <div className="space-y-4">
+          <div className="bg-zinc-900 text-white p-8 rounded-xl shadow-2xl relative overflow-hidden h-full flex flex-col justify-between">
+            <div className="relative z-10">
+              <h2 className="text-md font-black uppercase mb-8 tracking-[0.3em] text-white border-l-4 border-white pl-4">Aksi Cepat</h2>
+              <div className="grid grid-cols-1 gap-3">
+                <Link href="/admin/pos" className="flex items-center justify-between p-5 bg-white text-black hover:scale-[1.02] rounded-xl transition-all group shadow-xl">
+                  <span className="text-sm font-black uppercase tracking-widest">POS Kasir</span>
+                  <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-2 transition-transform" />
+                </Link>
+                <Link href="/admin/produk/tambah" className="flex items-center justify-between p-5 bg-zinc-800 text-white hover:bg-zinc-700 rounded-xl transition-all group">
+                  <span className="text-sm font-black uppercase tracking-widest">Inventory Baru</span>
+                  <PlusIcon size={16} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
+                </Link>
+              </div>
+            </div>
+            <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-[0.5em] mt-10">HnM Store Control v2.0</p>
           </div>
         </div>
       </div>
@@ -189,14 +207,20 @@ export default function DashboardPage() {
   )
 }
 
-function StatCard({ label, value, icon, color }: any) {
+function StatCard({ label, value, icon, color, textColor }: any) {
   return (
-    <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 transition-all hover:border-gray-200">
-      <div className={`p-2 md:p-3 rounded-xl ${color}`}>{icon}</div>
+    <div className="bg-white p-6 rounded-xl border-2 border-zinc-100 shadow-sm flex flex-col gap-6 transition-all hover:border-black group">
+      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
+        {icon}
+      </div>
       <div>
-        <p className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-tight leading-none mb-1">{label}</p>
-        <p className="text-[14px] md:text-xl font-black text-gray-900 tracking-tighter truncate leading-none">{value}</p>
+        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className={`text-2xl font-black ${textColor} tracking-tighter truncate`}>{value}</p>
       </div>
     </div>
   )
+}
+
+function PlusIcon({ size, className, strokeWidth }: any) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 5v14M5 12h14"/></svg>
 }
