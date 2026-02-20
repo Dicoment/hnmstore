@@ -22,7 +22,6 @@ export default function MediaManagerPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [totalSize, setTotalSize] = useState(0)
   
-  // Tab Produk (ProductImage) & Retur (ReturnImage) tetep ada!
   const [activeBucket, setActiveBucket] = useState<'ProductImage' | 'ReturnImage'>('ProductImage')
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
 
@@ -30,7 +29,6 @@ export default function MediaManagerPage() {
   const fetchMedia = useCallback(async () => {
     try {
       setLoading(true)
-      // Kita kirim parameter bucket biar API tau folder mana yang mau dibaca
       const res = await fetch(`/api/media?bucket=${activeBucket}`)
       const result = await res.json()
 
@@ -49,7 +47,7 @@ export default function MediaManagerPage() {
 
   useEffect(() => { fetchMedia() }, [fetchMedia])
 
-  // UPLOAD: Simpan ke folder VPS yang sesuai
+  // UPLOAD: Simpan ke folder VPS & Trigger Revalidate Otomatis
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -57,7 +55,6 @@ export default function MediaManagerPage() {
       for (const file of Array.from(e.target.files)) {
         const formData = new FormData()
         formData.append('file', file)
-        // Kita kasih tau API mau simpen di sub-folder 'products' atau 'returns'
         formData.append('folder', activeBucket === 'ProductImage' ? 'products' : 'returns')
 
         const res = await fetch('/api/upload', {
@@ -66,13 +63,17 @@ export default function MediaManagerPage() {
         })
         if (!res.ok) throw new Error("Gagal upload ke VPS")
       }
+
+      // MEMAKSA NEXT.JS REFRESH CACHE (Biar gambar gak pecah)
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
+      
       fetchMedia()
     } catch (err: any) {
       alert("Upload Gagal: " + err.message)
     } finally { setUploading(false) }
   }
 
-  // DELETE: Hapus file fisik di VPS
+  // DELETE: Hapus file fisik di VPS & Trigger Revalidate Otomatis
   async function handleDeleteSelected() {
     if (!confirm(`Hapus ${selectedFiles.length} file dari ${activeBucket} secara permanen?`)) return
     try {
@@ -86,6 +87,9 @@ export default function MediaManagerPage() {
       })
 
       if (!res.ok) throw new Error("Gagal hapus file di VPS")
+
+      // MEMAKSA NEXT.JS REFRESH CACHE
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
 
       alert(`Berhasil menghapus ${selectedFiles.length} file!`)
       fetchMedia()
@@ -125,7 +129,7 @@ export default function MediaManagerPage() {
         <div className="p-4 lg:p-6 border-b border-gray-100 bg-white sticky top-0 z-30 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-xl font-black italic uppercase tracking-tighter">VPS Media Manager</h1>
+              <h1 className="text-xl font-black italic uppercase tracking-tighter">Media Manager</h1>
               <div className="flex items-center gap-2 mt-1">
                  <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${activeBucket === 'ProductImage' ? 'bg-black text-white' : 'bg-orange-500 text-white'}`}>
                    {activeBucket === 'ProductImage' ? 'Catalog' : 'Returns'}
@@ -185,7 +189,7 @@ export default function MediaManagerPage() {
           {loading && files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-300">
               <Loader2 className="animate-spin" size={32} />
-              <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi VPS...</p>
+              <p className="text-[10px] font-black uppercase tracking-widest">Sinkronisasi Media...</p>
             </div>
           ) : filteredFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 opacity-20 text-black">
@@ -203,7 +207,13 @@ export default function MediaManagerPage() {
                     className={`group relative bg-white border rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'border-black ring-2 ring-black' : 'border-gray-100 hover:border-gray-300 shadow-sm'}`}
                   >
                     <div className="aspect-square relative bg-gray-50">
-                      <Image src={file.url} alt={file.name} fill className={`object-cover transition-transform duration-500 group-hover:scale-105 ${isSelected ? 'opacity-70 scale-95' : ''}`} unoptimized />
+                      <Image 
+                        src={file.url} 
+                        alt={file.name} 
+                        fill 
+                        className={`object-cover transition-transform duration-500 group-hover:scale-105 ${isSelected ? 'opacity-70 scale-95' : ''}`} 
+                        unoptimized 
+                      />
                       <div className={`absolute top-2 left-2 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         {isSelected ? <CheckCircle2 className="text-black bg-white rounded-full shadow-lg" size={18} /> : <Square className="text-white bg-black/20 backdrop-blur-sm rounded-sm" size={16} />}
                       </div>
