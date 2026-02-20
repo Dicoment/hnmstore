@@ -76,6 +76,18 @@ export async function middleware(request: NextRequest) {
   return response
 }
 
+// --- CONFIG MATCHER ---
+// Penting: Kita tambahkan 'uploads' di daftar pengecualian (exclude)
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  matcher: [
+    /*
+     * Match semua request kecuali:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - uploads (folder gambar VPS lu)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|uploads).*)',
+  ],
 }
