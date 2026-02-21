@@ -1,93 +1,52 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { jwtVerify } from 'jose' // Lebih ringan buat Middleware: npm install jose
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  })
-
-  // 1. Inisialisasi Client Supabase (Hanya untuk Cek Sesi Auth)
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) { return request.cookies.get(name)?.value },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({ name, value: '', ...options })
-        },
-      },
-    }
-  )
-
-  // 2. Ambil User yang Sedang Login
-  const { data: { user } } = await supabase.auth.getUser()
-
   const path = request.nextUrl.pathname
+
+  // 1. BYPASS TOTAL UNTUK UPLOADS (Biar gambar gak pecah lagi)
+  if (path.startsWith('/uploads')) {
+    return NextResponse.next()
+  }
+
+  const token = request.cookies.get('session-token')?.value
   const isAuthPage = path === '/login'
   const isAdminPage = path.startsWith('/admin')
 
-  // --- LOGIKA PROTEKSI HALAMAN ---
-
-  // Belum login tapi maksa masuk area admin? Lempar ke login
-  if (isAdminPage && !user) {
+  // 2. Proteksi Halaman Admin
+  if (isAdminPage && !token) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Sudah login tapi mau buka halaman login lagi? Lempar ke dashboard
-  if (isAuthPage && user) {
+  // 3. Jika sudah login jangan ke /login lagi
+  if (isAuthPage && token) {
     return NextResponse.redirect(new URL('/admin', request.url))
   }
 
-  // 3. CEK ROLE DARI DATABASE VPS (Bukan Supabase)
-  if (user && isAdminPage && path !== '/admin/unauthorized') {
-    const restrictedPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
-    const isRestricted = restrictedPaths.some(p => path.startsWith(p))
+  // 4. Proteksi Role (Laporan & Tim)
+  if (token && isAdminPage) {
+    try {
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia_dicoment_agency')
+      const { payload } = await jwtVerify(token, secret)
+      const userRole = (payload.role as string)?.toUpperCase()
 
-    if (isRestricted) {
-      try {
-        // Tembak API VPS Lokal
-        const vpsRes = await fetch(`${request.nextUrl.origin}/api/vps-db`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            sql: 'SELECT role FROM public."Profiles" WHERE id = $1 LIMIT 1',
-            params: [user.id] 
-          })
-        })
-        
-        const result = await vpsRes.json()
-        const userRole = result.data?.[0]?.role?.toUpperCase()
+      const restrictedPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
+      const isRestricted = restrictedPaths.some(p => path.startsWith(p))
 
-        // Validasi: Hanya OWNER atau SUPERADMIN yang boleh masuk
-        if (userRole !== 'SUPERADMIN' && userRole !== 'OWNER') {
-          return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
-        }
-      } catch (err) {
-        // Jika koneksi VPS bermasalah, demi keamanan lempar ke login
-        return NextResponse.redirect(new URL('/login', request.url))
+      if (isRestricted && userRole !== 'OWNER' && userRole !== 'SUPERADMIN') {
+        return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
       }
+    } catch (err) {
+      // Token expired atau invalid
+      const res = NextResponse.redirect(new URL('/login', request.url))
+      res.cookies.delete('session-token')
+      return res
     }
   }
 
-  return response
+  return NextResponse.next()
 }
 
-// --- CONFIG MATCHER ---
-// Penting: Kita tambahkan 'uploads' di daftar pengecualian (exclude)
 export const config = {
-  matcher: [
-    /*
-     * Match semua request kecuali:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - uploads (folder gambar VPS lu)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|uploads).*)',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|uploads).*)'],
 }

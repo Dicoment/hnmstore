@@ -48,10 +48,13 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           fetch('/api/vps-db', {
             method: 'POST',
             body: JSON.stringify({ 
+              // PERBAIKAN: Nama tabel menggunakan tanda petik dua (Case Sensitive untuk VPS)
               sql: `
                 SELECT p.*, b.name as "brandName", m.name as "modelName",
                 (SELECT json_agg(json_build_object('stock', pss.stock, 'Size', json_build_object('value', s.value)) ORDER BY s.value ASC)
-                 FROM public."ProductSizeStock" pss JOIN public."Size" s ON s.id = pss."sizeId" WHERE pss."productId" = p.id) as "ProductSizeStock"
+                 FROM public."ProductSizeStock" pss 
+                 JOIN public."Size" s ON s.id = pss."sizeId" 
+                 WHERE pss."productId" = p.id) as "ProductSizeStock"
                 FROM public."Product" p
                 LEFT JOIN public."Brand" b ON p."brandId" = b.id
                 LEFT JOIN public."Model" m ON p."modelId" = m.id
@@ -62,7 +65,9 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           }).then(r => r.json()),
           fetch('/api/vps-db', {
             method: 'POST',
-            body: JSON.stringify({ sql: 'SELECT phone_number, template_message, is_active FROM public."WhatsAppConfig" LIMIT 1' })
+            body: JSON.stringify({ 
+              sql: 'SELECT phone_number, template_message, is_active FROM public."WhatsAppConfig" LIMIT 1' 
+            })
           }).then(r => r.json())
         ])
 
@@ -77,6 +82,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
             ProductSizeStock: rawProduct.ProductSizeStock || []
           })
 
+          // PERBAIKAN: Query Produk Terkait juga disesuaikan tabelnya
           const relRes = await fetch('/api/vps-db', {
             method: 'POST',
             body: JSON.stringify({ 
@@ -90,7 +96,11 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           if (relRes.data) setRelatedProducts(relRes.data)
         }
         if (waRes.data?.[0]) setWaConfig(waRes.data[0])
-      } catch (err) { console.error(err) } finally { setLoading(false) }
+      } catch (err) { 
+        console.error("Gagal ambil data produk:", err) 
+      } finally { 
+        setLoading(false) 
+      }
     }
     getInitialData()
   }, [slug])
@@ -107,8 +117,12 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
   }
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white"><Loader2 className="animate-spin text-black" size={40} /></div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+      <Loader2 className="animate-spin text-black" size={40} />
+      <p className="text-[10px] font-black uppercase tracking-widest mt-4">Memuat Produk...</p>
+    </div>
   )
+  
   if (!product) return notFound()
 
   return (

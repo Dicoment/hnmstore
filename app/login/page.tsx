@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState('')
@@ -13,32 +12,34 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const router = useRouter()
 
-  // Inisialisasi Supabase Client versi SSR
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: identifier,
-        password: password,
+      // GANTI: Menembak API Auth lokal VPS kamu
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: identifier, 
+          password: password 
+        })
       })
 
-      if (error) throw error
+      const result = await res.json()
 
-      if (data.user) {
-        // Simpan email ke localStorage buat kebutuhan Log Mutasi tadi
-        localStorage.setItem('user_email', data.user.email || '')
-        
-        router.push('/admin')
-        router.refresh()
+      if (!res.ok) {
+        throw new Error(result.message || 'Gagal masuk.')
       }
+
+      // Login Berhasil
+      localStorage.setItem('user_email', identifier)
+      
+      router.push('/admin')
+      router.refresh()
+      
     } catch (err: any) {
       setErrorMsg(err.message || 'Gagal masuk. Periksa kembali email dan password Anda.')
     } finally {
@@ -72,7 +73,7 @@ export default function LoginPage() {
               <input 
                 type="email" 
                 required 
-                placeholder="admin@hnmstore.com"
+                placeholder="admin@hnmstore.id"
                 className="w-full pl-14 pr-6 py-5 bg-gray-50 border-2 border-transparent rounded-[20px] outline-none focus:bg-white focus:border-black transition-all font-black text-sm text-black"
                 onChange={(e) => setIdentifier(e.target.value)}
               />
