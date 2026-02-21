@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { jwtVerify } from 'jose' // Lebih ringan buat Middleware: npm install jose
+import { jwtVerify } from 'jose' 
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
-  // 1. BYPASS TOTAL UNTUK UPLOADS (Biar gambar gak pecah lagi)
+  // 1. BYPASS TOTAL UNTUK FOLDER UPLOADS
   if (path.startsWith('/uploads')) {
     return NextResponse.next()
   }
@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin', request.url))
   }
 
-  // 4. Proteksi Role (Laporan & Tim)
+  // 4. Proteksi Role (Laporan & Tim) menggunakan JWT
   if (token && isAdminPage) {
     try {
       const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia_dicoment_agency')
@@ -33,11 +33,12 @@ export async function middleware(request: NextRequest) {
       const restrictedPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
       const isRestricted = restrictedPaths.some(p => path.startsWith(p))
 
-      if (isRestricted && userRole !== 'OWNER' && userRole !== 'SUPERADMIN') {
+      // Cek role SUPERADMIN atau OWNER (sesuaikan dengan isi database VPS lu)
+      if (isRestricted && userRole !== 'OWNER' && userRole !== 'SUPERADMIN' && userRole !== 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
       }
     } catch (err) {
-      // Token expired atau invalid
+      // Jika token expired atau invalid, paksa login ulang
       const res = NextResponse.redirect(new URL('/login', request.url))
       res.cookies.delete('session-token')
       return res

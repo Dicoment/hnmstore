@@ -89,7 +89,7 @@ export default function AdminLayout({
           <div className="flex items-center justify-between">
              {(!collapsed || mobileOpen) && (
               <div className="flex items-center gap-2 animate-in fade-in duration-500">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 text-white font-black text-xs uppercase">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-xs uppercase">
                   HnM
                 </div>
                 <span className="font-black tracking-tighter text-gray-900 uppercase truncate">Store</span>
@@ -111,7 +111,7 @@ export default function AdminLayout({
               className="flex items-center gap-3 px-3 py-2.5 bg-zinc-50 hover:bg-zinc-900 hover:text-white rounded-xl transition-all group border border-zinc-100"
             >
               <Globe size={16} className="text-zinc-400 group-hover:text-white transition-colors" />
-              <span className="text-[10px] font-black uppercase tracking-widest truncate">Visit Website</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest truncate">Visit Website</span>
             </Link>
           ) : (
              <Link 
@@ -184,14 +184,14 @@ export default function AdminLayout({
             >
               <Menu size={20} />
             </button>
-            <h1 className="font-black text-gray-900 text-sm lg:text-xl uppercase tracking-tighter truncate">
+            <h1 className="font-bold text-gray-900 text-sm lg:text-xl uppercase tracking-tighter truncate">
               {pathname === '/admin' ? 'Overview' : pathname?.split('/').pop()?.replace('-', ' ')}
             </h1>
           </div>
           <div className="hidden sm:flex items-center gap-6 text-right">
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</p>
-              <p className="text-xs font-black text-green-500 uppercase flex items-center justify-end gap-1.5">
+              <p className="text-xs font-bold text-green-500 uppercase flex items-center justify-end gap-1.5">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Terhubung
               </p>
             </div>
@@ -210,7 +210,7 @@ export default function AdminLayout({
 
 function SidebarLabel({ label, collapsed, mobileOpen }: { label: string, collapsed: boolean, mobileOpen: boolean }) {
   if (collapsed && !mobileOpen) return <div className="border-t border-gray-100 my-4 mx-auto w-10" />
-  return <p className="pt-6 pb-2 px-3 text-xs font-black uppercase tracking-[2px] text-gray-400">{label}</p>
+  return <p className="pt-6 pb-2 px-3 text-xs font-bold uppercase tracking-[2px] text-gray-400">{label}</p>
 }
 
 function SidebarItem({ href, icon, label, collapsed, mobileOpen, active }: any) {
@@ -224,7 +224,7 @@ function SidebarItem({ href, icon, label, collapsed, mobileOpen, active }: any) 
       `}
     >
       <span className={`${active ? "text-white" : "text-gray-400 group-hover:text-gray-900"} shrink-0`}>{icon}</span>
-      {(!collapsed || mobileOpen) && <span className="text-[13px] font-black uppercase tracking-tight truncate">{label}</span>}
+      {(!collapsed || mobileOpen) && <span className="text-[13px] font-bold uppercase tracking-tight truncate">{label}</span>}
       {(!collapsed || mobileOpen) && active && <ChevronRight size={14} className="ml-auto opacity-50 shrink-0" />}
     </Link>
   )
