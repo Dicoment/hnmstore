@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
-// Kita pake Pool biar koneksi gak gampang putus/timeout
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Tambahan biar aman di environment serverless Next.js
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000, // Naikin dikit biar gak gampang timeout
+  // TAMBAHKAN INI BIAR BISA KONEK KE DB VPS TANPA ERROR SSL
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 export async function POST(req: NextRequest) {
   try {
     const { sql, params } = await req.json();
 
-    // Validasi dasar biar gak kosong banget
     if (!sql) {
       return NextResponse.json({ error: 'Query SQL kosong!' }, { status: 400 });
     }
 
-    // Eksekusi query ke VPS
     const result = await pool.query(sql, params || []);
 
     return NextResponse.json({

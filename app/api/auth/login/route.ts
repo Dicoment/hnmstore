@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { SignJWT } from 'jose' // PAKAI INI, JANGAN JSONWEBTOKEN
+import { SignJWT } from 'jose'
 
 export async function POST(request: Request) {
   try {
     const { email, password } = await request.json()
 
-    // 1. Tembak Database VPS lu lewat API vps-db yang sudah stabil
-    const baseUrl = new URL(request.url).origin
-    const vpsRes = await fetch(`${baseUrl}/api/vps-db`, {
+    // GUNAKAN LOCALHOST:3000 UNTUK BYPASS MASALAH DNS INTERNAL DOCKER
+    const vpsRes = await fetch(`http://localhost:3000/api/vps-db`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -17,15 +16,17 @@ export async function POST(request: Request) {
       })
     })
 
+    if (!vpsRes.ok) {
+      throw new Error(`Koneksi API VPS-DB Gagal: ${vpsRes.status}`)
+    }
+
     const { data } = await vpsRes.json()
     const user = data?.[0]
 
-    // 2. Validasi (Sesuai password plain text di Adminer lu)
     if (!user || user.password !== password) {
       return NextResponse.json({ message: 'Email atau password salah' }, { status: 401 })
     }
 
-    // 3. Buat Token JWT pakai JOSE (Kunci Gerbang yang support Middleware)
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia_dicoment_agency')
     const token = await new SignJWT({ 
         id: user.id, 
@@ -37,19 +38,18 @@ export async function POST(request: Request) {
       .setExpirationTime('1d')
       .sign(secret)
 
-    // 4. Set Cookie HttpOnly (Aman dari pencurian script)
     const cookieStore = await cookies()
     cookieStore.set('session-token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // WAJIB TRUE DI PRODUCTION (HTTPS)
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24
     })
 
     return NextResponse.json({ message: 'Login Berhasil', role: user.role })
-  } catch (err) {
-    console.error("Login Error:", err)
-    return NextResponse.json({ message: 'Server Error' }, { status: 500 })
+  } catch (err: any) {
+    console.error("❌ Login Error Detail:", err.message)
+    return NextResponse.json({ message: `Server Error: ${err.message}` }, { status: 500 })
   }
 }
