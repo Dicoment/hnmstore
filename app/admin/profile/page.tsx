@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Mail, Lock, Camera, Save, Loader2, KeyRound, ShieldCheck } from "lucide-react";
-import { createBrowserClient } from '@supabase/ssr'
+import { User, Lock, Save, Loader2, KeyRound, ShieldCheck } from "lucide-react";
+
+// Memastikan halaman selalu mengambil data terbaru dari VPS
+export const dynamic = 'force-dynamic';
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -20,53 +22,58 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
   useEffect(() => {
     async function getProfile() {
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) return;
+        // Ambil email dari localStorage hasil login JWT
+        const userEmail = localStorage.getItem('user_email');
+        if (!userEmail) return;
 
-        // Tarik data dari VPS Database
+        // Tarik data profil lengkap dari VPS Database
         const res = await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            sql: 'SELECT * FROM public."Profiles" WHERE id = $1 LIMIT 1',
-            params: [user.id]
+            sql: 'SELECT id, full_name, email, role FROM public."Profiles" WHERE email = $1 LIMIT 1',
+            params: [userEmail]
           })
-        })
-        const result = await res.json()
-        const data = result.data?.[0]
-
-        setProfile({
-          id: user.id,
-          full_name: data?.full_name || "",
-          email: user.email || "",
-          role: data?.role || "STAFF",
         });
+        
+        const result = await res.json();
+        const data = result.data?.[0];
+
+        if (data) {
+          setProfile({
+            id: data.id,
+            full_name: data.full_name || "",
+            email: data.email || "",
+            role: data.role || "STAFF",
+          });
+        }
+      } catch (err) {
+        console.error("Gagal load profil:", err);
       } finally {
         setLoading(false);
       }
     }
     getProfile();
-  }, [supabase]);
+  }, []);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setUpdating(true);
     
     try {
-      await fetch('/api/vps-db', {
+      const res = await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sql: 'UPDATE public."Profiles" SET full_name = $1 WHERE id = $2',
           params: [profile.full_name, profile.id]
         })
       });
+
+      if (!res.ok) throw new Error();
       alert("Nama berhasil diperbarui!");
     } catch (err) {
       alert("Gagal update profil");
@@ -87,17 +94,26 @@ export default function ProfilePage() {
     }
 
     setPassLoading(true);
-    const { error } = await supabase.auth.updateUser({
-      password: passwordData.newPassword
-    });
+    try {
+      // Langsung update kolom password di tabel Profiles VPS
+      const res = await fetch('/api/vps-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql: 'UPDATE public."Profiles" SET password = $1 WHERE id = $2',
+          params: [passwordData.newPassword, profile.id]
+        })
+      });
 
-    if (error) {
-      alert("Gagal ubah password: " + error.message);
-    } else {
+      if (!res.ok) throw new Error();
+      
       alert("Password berhasil diubah!");
       setPasswordData({ newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      alert("Gagal mengubah password di VPS");
+    } finally {
+      setPassLoading(false);
     }
-    setPassLoading(false);
   };
 
   if (loading) return (

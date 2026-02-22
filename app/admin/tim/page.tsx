@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
-  Users, UserPlus, Shield, ArrowLeft, Search, 
+  Users, UserPlus, ArrowLeft, Search, 
   Loader2, X, Save, MapPin, CreditCard, Fingerprint, Trash2, Edit3
 } from 'lucide-react'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/ssr'
+
+// PENTING: Paksa rendering dinamis agar data tim selalu segar dari VPS
+export const dynamic = 'force-dynamic'
 
 export default function KelolaTimPage() {
   const [team, setTeam] = useState<any[]>([])
@@ -17,52 +19,54 @@ export default function KelolaTimPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
-    full_name: '', email: '', role: 'STAFF', address: '', nik: '', bank_account: ''
+    full_name: '', email: '', password: '', role: 'STAFF', address: '', nik: '', bank_account: ''
   })
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
-  useEffect(() => { fetchTeam() }, [])
-
-  async function fetchTeam() {
+  const fetchTeam = useCallback(async () => {
     try {
       setLoading(true)
       const res = await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sql: 'SELECT * FROM public."Profiles" ORDER BY created_at DESC' })
       })
       const result = await res.json()
       if (result.data) setTeam(result.data)
-    } catch (err) { console.error(err) } finally { setLoading(false) }
-  }
+    } catch (err) { 
+      console.error("Gagal load tim:", err) 
+    } finally { 
+      setLoading(false) 
+    }
+  }, [])
+
+  useEffect(() => { fetchTeam() }, [fetchTeam])
 
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: 'password123',
-      })
-      if (authError) throw authError
-
+      // REGISTRASI LANGSUNG KE VPS (Tanpa Supabase Auth)
       const vpsRes = await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sql: `INSERT INTO public."Profiles" (id, full_name, email, role, address, nik, bank_account) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          params: [authData.user?.id, formData.full_name, formData.email, formData.role, formData.address, formData.nik, formData.bank_account]
+          sql: `INSERT INTO public."Profiles" (full_name, email, password, role, address, nik, bank_account) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          params: [formData.full_name, formData.email, formData.password || 'password123', formData.role, formData.address, formData.nik, formData.bank_account]
         })
       })
-      if ((await vpsRes.json()).error) throw new Error("Gagal simpan ke VPS")
       
-      alert("Tim Berhasil Didaftarkan!")
+      const resJson = await vpsRes.json()
+      if (resJson.error) throw new Error("Gagal simpan ke VPS")
+      
+      alert("Anggota Tim Berhasil Didaftarkan!")
       setShowModal(false)
-      setFormData({ full_name: '', email: '', role: 'STAFF', address: '', nik: '', bank_account: '' })
+      setFormData({ full_name: '', email: '', password: '', role: 'STAFF', address: '', nik: '', bank_account: '' })
       fetchTeam()
-    } catch (err: any) { alert(err.message) } finally { setIsSubmitting(false) }
+    } catch (err: any) { 
+      alert(err.message) 
+    } finally { 
+      setIsSubmitting(false) 
+    }
   }
 
   async function handleUpdateMember(e: React.FormEvent) {
@@ -73,6 +77,7 @@ export default function KelolaTimPage() {
       const sql = `UPDATE public."Profiles" SET full_name = $1, role = $2, address = $3, nik = $4, bank_account = $5 WHERE id = $6`
       const res = await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sql,
           params: [selectedMember.full_name, selectedMember.role, selectedMember.address, selectedMember.nik, selectedMember.bank_account, selectedMember.id]
@@ -83,12 +88,20 @@ export default function KelolaTimPage() {
       alert("Data Karyawan Berhasil Diperbarui!")
       setSelectedMember(null)
       fetchTeam()
-    } catch (err: any) { alert(err.message) } finally { setIsSubmitting(false) }
+    } catch (err: any) { 
+      alert(err.message) 
+    } finally { 
+      setIsSubmitting(false) 
+    }
   }
 
   async function handleDeleteMember(id: string, name: string) {
     if (!confirm(`Hapus ${name}? Akses login akan dicabut.`)) return
-    await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql: 'DELETE FROM public."Profiles" WHERE id = $1', params: [id] }) })
+    await fetch('/api/vps-db', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: 'DELETE FROM public."Profiles" WHERE id = $1', params: [id] }) 
+    })
     fetchTeam()
   }
 
@@ -103,7 +116,7 @@ export default function KelolaTimPage() {
     <div className="p-4 md:p-8 bg-white min-h-screen text-black font-sans relative overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         
-        {/* HEADER: Stack on Mobile */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 md:mb-10">
           <div>
             <Link href="/admin" className="text-[10px] font-black uppercase text-gray-400 hover:text-black mb-2 flex items-center gap-2 tracking-widest transition-all">
@@ -113,7 +126,7 @@ export default function KelolaTimPage() {
               <Users className="text-black size-8 md:size-9" /> KELOLA SDM
             </h1>
           </div>
-          <button onClick={() => setShowModal(true)} className="w-full md:w-auto bg-black text-white px-6 md:px-8 py-4 rounded-xl text-[10px] md:text-xs font-black shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
+          <button onClick={() => setShowModal(true)} className="w-full cursor-pointer md:w-auto bg-black text-white px-6 md:px-8 py-4 rounded-xl text-[10px] md:text-xs font-black shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
             <UserPlus size={18} /> ANGGOTA BARU
           </button>
         </div>
@@ -129,9 +142,8 @@ export default function KelolaTimPage() {
           />
         </div>
 
-        {/* CONTENT: Table on Desktop, Cards on Mobile */}
+        {/* CONTENT */}
         <div className="bg-white md:border-2 md:border-gray-100 rounded-xl overflow-hidden shadow-sm">
-          {/* Desktop Table */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 border-b-2 border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-widest">
@@ -143,7 +155,7 @@ export default function KelolaTimPage() {
                   <th className="p-5 text-right">AKSI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-[11px] font-black uppercase">
+              <tbody className="divide-y divide-gray-100 text-[11px] cursor-pointer font-black uppercase">
                 {team.filter(u => u.full_name?.toLowerCase().includes(searchTerm.toLowerCase())).map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-all group border-l-4 border-transparent hover:border-black">
                     <td className="p-5">
@@ -163,7 +175,7 @@ export default function KelolaTimPage() {
                        <p className="flex items-center gap-2"><CreditCard size={14}/> {user.bank_account || '-'}</p>
                     </td>
                     <td className="p-5">
-                      <span className={`px-2 py-1 rounded-md text-[9px] font-black ${user.role === 'OWNER' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>{user.role}</span>
+                      <span className={`px-2 py-1 rounded-md text-[9px] font-black ${user.role === 'OWNER' || user.role === 'SUPERADMIN' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>{user.role}</span>
                     </td>
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2">
@@ -204,7 +216,7 @@ export default function KelolaTimPage() {
           </div>
         </div>
 
-        {/* EDIT DRAWER: Responsive width */}
+        {/* EDIT DRAWER */}
         {selectedMember && (
           <div className="fixed inset-0 z-200 flex justify-end">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedMember(null)} />
@@ -212,7 +224,7 @@ export default function KelolaTimPage() {
               <div className="p-6 md:p-8 border-b flex justify-between items-center bg-gray-50/50">
                 <div>
                   <h2 className="font-black text-xl md:text-2xl uppercase tracking-tighter leading-none">Edit Profil Tim</h2>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">ID: {selectedMember.id.slice(0,12)}...</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Update data SDM HnM Store</p>
                 </div>
                 <button onClick={() => setSelectedMember(null)} className="p-2 bg-white border rounded-xl hover:bg-red-500 hover:text-white transition-all">
                   <X className="size-6" />
@@ -223,10 +235,10 @@ export default function KelolaTimPage() {
                 <div className="space-y-6">
                   <div className="border-b-2 border-gray-100 focus-within:border-black transition-all py-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Nama Lengkap</label>
-                    <input required type="text" value={selectedMember.full_name} onChange={(e) => setSelectedMember({...selectedMember, full_name: e.target.value})} className="w-full outline-none font-black text-base md:text-lg bg-transparent uppercase" />
+                    <input required type="text" value={selectedMember.full_name} onChange={(e) => setSelectedMember({...selectedMember, full_name: e.target.value})} className="w-full outline-none font-black text-base md:text-lg bg-transparent uppercase text-black" />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 text-black">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nomor NIK</label>
                       <input type="text" value={selectedMember.nik || ''} onChange={(e) => setSelectedMember({...selectedMember, nik: e.target.value})} className="w-full bg-gray-50 border-2 border-transparent focus:border-black rounded-xl p-3 md:p-4 font-black text-xs md:text-sm outline-none" />
@@ -241,12 +253,12 @@ export default function KelolaTimPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 text-black">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Alamat Lengkap</label>
                     <textarea value={selectedMember.address || ''} onChange={(e) => setSelectedMember({...selectedMember, address: e.target.value})} className="w-full bg-gray-50 border-2 border-transparent focus:border-black rounded-xl p-3 md:p-4 font-bold text-xs md:text-sm outline-none h-24 resize-none" />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 text-black">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Info Rekening</label>
                     <input type="text" value={selectedMember.bank_account || ''} onChange={(e) => setSelectedMember({...selectedMember, bank_account: e.target.value})} className="w-full bg-gray-50 border-2 border-transparent focus:border-black rounded-xl p-3 md:p-4 font-black text-xs md:text-sm outline-none" placeholder="BCA - 123456789 - A/N NAMA" />
                   </div>
@@ -262,11 +274,11 @@ export default function KelolaTimPage() {
           </div>
         )}
 
-        {/* MODAL TAMBAH: Full width on Mobile */}
+        {/* MODAL TAMBAH */}
         {showModal && (
           <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl p-6 md:p-8 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-center mb-6 md:mb-8">
+              <div className="flex justify-between items-center mb-6 md:mb-8 text-black">
                 <h2 className="text-lg md:text-xl font-black uppercase tracking-tighter">Registrasi Tim Baru</h2>
                 <button onClick={() => setShowModal(false)} className="hover:rotate-90 transition-all"><X className="size-6"/></button>
               </div>
@@ -281,7 +293,7 @@ export default function KelolaTimPage() {
                     <input required type="email" placeholder="EMAIL@HNM.COM" className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl outline-none font-black text-xs transition-all" onChange={(e) => setFormData({...formData, email: e.target.value})} />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Role Jabatan</label>
@@ -292,19 +304,25 @@ export default function KelolaTimPage() {
                     </select>
                   </div>
                   <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Set Password</label>
+                    <input required type="password" placeholder="PASSWORD LOGIN" className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl outline-none font-black text-xs transition-all" onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">NIK KTP</label>
                     <input placeholder="NOMOR NIK" className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl outline-none font-black text-xs transition-all" onChange={(e) => setFormData({...formData, nik: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Rekening Payroll</label>
+                     <input placeholder="BANK - NOMOR - A/N" className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl outline-none font-black text-xs transition-all uppercase" onChange={(e) => setFormData({...formData, bank_account: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Alamat Domisili</label>
                     <textarea placeholder="ALAMAT LENGKAP" className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl outline-none font-bold text-xs resize-none h-20 transition-all" onChange={(e) => setFormData({...formData, address: e.target.value})} />
-                </div>
-
-                <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Rekening Payroll</label>
-                    <input placeholder="BANK - NOMOR - A/N" className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl outline-none font-black text-xs transition-all uppercase" onChange={(e) => setFormData({...formData, bank_account: e.target.value})} />
                 </div>
 
                 <div className="pt-2">

@@ -6,9 +6,11 @@ import Link from 'next/link'
 import { 
   Search, ShoppingCart, Trash2, Plus, Minus, 
   CheckCircle2, Loader2, Printer, X,
-  RefreshCcw, Camera, AlertCircle, LayoutGrid
+  RefreshCcw, Camera, AlertCircle
 } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
+
+// PENTING: Paksa rendering dinamis agar stok selalu akurat dari VPS
+export const dynamic = 'force-dynamic'
 
 export default function POSPage() {
   const [products, setProducts] = useState<any[]>([])
@@ -29,11 +31,6 @@ export default function POSPage() {
   const [returnFile, setReturnFile] = useState<File | null>(null)
   const [isReturning, setIsReturning] = useState(false)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   const total = Math.max(0, subtotal - discount)
 
@@ -47,6 +44,7 @@ export default function POSPage() {
       const today = new Date(); today.setHours(0, 0, 0, 0)
       const res = await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sql: `SELECT * FROM public."Transactions" WHERE status = 'SUCCESS' AND created_at >= $1 ORDER BY created_at DESC`,
           params: [today.toISOString()]
@@ -71,7 +69,11 @@ export default function POSPage() {
         JOIN public."Size" s ON s.id = pss."sizeId"
         GROUP BY p.id ORDER BY p.name ASC
       `
-      const res = await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql }) })
+      const res = await fetch('/api/vps-db', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql }) 
+      })
       const result = await res.json()
       if (result.data) setProducts(result.data)
     } finally { setLoading(false) }
@@ -81,18 +83,20 @@ export default function POSPage() {
     if (cart.length === 0) return
     setIsProcessing(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const adminEmail = localStorage.getItem('user_email') || user?.email || 'Kasir'
+      // Ambil email admin dari localStorage hasil login JWT
+      const adminEmail = localStorage.getItem('user_email') || 'Kasir'
 
       for (const item of cart) {
         const checkRes = await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sql: `SELECT stock FROM public."ProductSizeStock" WHERE id = $1`, params: [item.stockId] })
         })
         const currentStock = (await checkRes.json()).data?.[0]?.stock || 0
 
         await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sql: `UPDATE public."ProductSizeStock" SET stock = stock - $1 WHERE id = $2`,
             params: [item.quantity, item.stockId]
@@ -101,21 +105,27 @@ export default function POSPage() {
 
         await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sql: `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            params: [item.name, item.size, currentStock, currentStock - item.quantity, 'TERJUAL', `Kasir: ${adminEmail}`, user?.id]
+            sql: `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by_email) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            params: [item.name, item.size, currentStock, currentStock - item.quantity, 'TERJUAL', `Kasir: ${adminEmail}`, adminEmail]
           })
         })
       }
 
       const txRes = await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sql: `INSERT INTO public."Transactions" (customer, subtotal, discount, total, items, items_count, created_by, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-          params: [customerName || 'UMUM', subtotal, discount, total, JSON.stringify(cart), cart.length, user?.id, 'SUCCESS']
+          sql: `INSERT INTO public."Transactions" (customer, subtotal, discount, total, items, items_count, created_by_email, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+          params: [customerName || 'UMUM', subtotal, discount, total, JSON.stringify(cart), cart.length, adminEmail, 'SUCCESS']
         })
       })
       const txData = await txRes.json()
+      
+      // Auto-revalidate cache produk setelah terjual agar stok di katalog publik update
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
+
       setLastTransaction({ ...txData.data[0], date: new Date().toLocaleString('id-ID') })
       setShowReceipt(true); setCart([]); setCustomerName(''); setDiscount(0);
       fetchProducts(); fetchRecentTransactions()
@@ -126,39 +136,45 @@ export default function POSPage() {
     if (!selectedTx || !returnReason) return alert('Alasan wajib diisi!')
     setIsReturning(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const adminEmail = localStorage.getItem('user_email') || user?.email || 'Admin'
+      const adminEmail = localStorage.getItem('user_email') || 'Admin'
 
       for (const item of selectedTx.items) {
         const checkRes = await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sql: `SELECT stock FROM public."ProductSizeStock" WHERE id = $1`, params: [item.stockId] })
         })
         const currentStock = (await checkRes.json()).data?.[0]?.stock || 0
 
         await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sql: `UPDATE public."ProductSizeStock" SET stock = stock + $1 WHERE id = $2`, params: [item.quantity, item.stockId] })
         })
 
         await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sql: `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            params: [item.name, item.size, currentStock, currentStock + item.quantity, 'RETUR', `Retur: ${returnReason} (Oleh: ${adminEmail})`, user?.id]
+            sql: `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by_email) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            params: [item.name, item.size, currentStock, currentStock + item.quantity, 'RETUR', `Retur: ${returnReason}`, adminEmail]
           })
         })
       }
 
       await fetch('/api/vps-db', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sql: `UPDATE public."Transactions" SET status = 'RETURNED' WHERE id = $1`, params: [selectedTx.id] })
       })
+
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
 
       alert('Retur Sukses!'); setShowReturnModal(false); fetchProducts(); fetchRecentTransactions()
     } finally { setIsReturning(false) }
   }
 
+  // Logika Cart, Qty, dan Print tetap sama...
   const addToCart = (product: any, ss: any) => {
     if (ss.stock <= 0) return alert('Stok Habis!')
     const ex = cart.find(i => i.stockId === ss.id)
@@ -192,10 +208,8 @@ export default function POSPage() {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen gap-4 p-3 md:p-5 bg-white text-black font-sans overflow-x-hidden">
-      
       {/* 1. KATALOG SECTION */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden order-2 lg:order-1">
-        {/* Search & Action Header */}
         <div className="border-2 border-gray-100 rounded-xl p-3 md:p-4 flex flex-col sm:flex-row justify-between items-center bg-white shadow-sm gap-3">
           <div className="relative w-full sm:flex-1 sm:max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -211,13 +225,12 @@ export default function POSPage() {
           </Link>
         </div>
 
-        {/* Product Grid */}
         <div className="flex-1 lg:overflow-y-auto grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 custom-scrollbar pb-20 lg:pb-4">
           {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(product => (
             <div key={product.id} className="border-2 border-gray-100 rounded-xl p-2 md:p-3 flex flex-col gap-2 md:gap-3 hover:border-black transition-all bg-white group shadow-sm">
               <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-50 border border-gray-100">
                 <Image 
-                  src={product.images?.[0] || '/placeholder.png'} 
+                  src={product.images?.[0] ? `/uploads/${product.images[0]}` : '/placeholder.png'} 
                   alt={product.name} 
                   fill 
                   className="object-cover group-hover:scale-110 transition-transform duration-500" 
@@ -245,14 +258,13 @@ export default function POSPage() {
           ))}
         </div>
 
-        {/* Recent Transactions Horizontal Scroll */}
         <div className="shrink-0 h-36 md:h-40 border-2 border-gray-100 rounded-xl p-3 md:p-4 flex flex-col bg-white overflow-hidden shadow-sm">
           <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 md:mb-3 flex items-center gap-2">
             <RefreshCcw size={14}/> TRANSAKSI HARI INI
           </p>
           <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
             {transactions.map(tx => (
-              <div key={tx.id} className="min-w-45 md:min-w-50 border-2 border-gray-100 p-3 rounded-xl flex flex-col justify-between hover:border-red-500 transition-all bg-white group">
+              <div key={tx.id} className="min-w-[180px] md:min-w-[200px] border-2 border-gray-100 p-3 rounded-xl flex flex-col justify-between hover:border-red-500 transition-all bg-white">
                 <p className="text-[9px] md:text-[10px] font-black uppercase tracking-tight truncate text-black">#{tx.id.slice(0,10)} - {tx.customer}</p>
                 <button 
                   onClick={() => { setSelectedTx(tx); setShowReturnModal(true); }} 
@@ -266,7 +278,7 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* 2. SIDEBAR CHECKOUT SECTION */}
+      {/* 2. SIDEBAR CHECKOUT */}
       <div className="w-full lg:w-96 flex flex-col border-2 border-gray-100 rounded-xl bg-white shadow-2xl overflow-hidden order-1 lg:order-2 h-fit lg:h-full">
         <div className="p-4 md:p-5 border-b-2 border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-3"><ShoppingCart size={20} /> CHECKOUT</h2>
@@ -278,7 +290,7 @@ export default function POSPage() {
           <input type="number" placeholder="DISKON (RP)..." value={discount || ''} onChange={(e) => setDiscount(Number(e.target.value))} className="w-full p-3 bg-gray-50 border-2 border-transparent focus:border-black rounded-xl text-[10px] md:text-xs font-black uppercase outline-none transition-all" />
         </div>
 
-        <div className="flex-1 min-h-37 lg:min-h-0 overflow-y-auto p-3 md:p-4 space-y-2 custom-scrollbar">
+        <div className="flex-1 min-h-[150px] lg:min-h-0 overflow-y-auto p-3 md:p-4 space-y-2 custom-scrollbar">
           {cart.length === 0 ? ( 
             <div className="h-full flex flex-col items-center justify-center opacity-5 py-10"><ShoppingCart size={60} /></div> 
           ) : cart.map(item => (
@@ -312,9 +324,9 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* 3. MODAL RETUR */}
+      {/* MODAL RETUR */}
       {showReturnModal && selectedTx && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 overflow-y-auto">
           <div className="bg-white rounded-xl w-full max-w-md my-auto shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-100 text-black">
             <div className="p-5 md:p-6 border-b-4 border-red-600 bg-white flex justify-between items-center">
               <h2 className="text-lg md:text-xl font-black uppercase tracking-tighter flex items-center gap-3 text-red-600"><RefreshCcw size={22} strokeWidth={3} /> RETUR</h2>
@@ -339,7 +351,7 @@ export default function POSPage() {
                   <div className="relative group overflow-hidden bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl h-32 md:h-40 flex flex-col items-center justify-center gap-2 transition-all hover:border-black">
                     {returnFile ? (
                       <div className="absolute inset-0">
-                        <img src={URL.createObjectURL(returnFile)} className="w-full h-full object-cover" />
+                        <img src={URL.createObjectURL(returnFile)} className="w-full h-full object-cover" alt="retur proof" />
                         <button onClick={() => setReturnFile(null)} className="absolute top-2 right-2 bg-black text-white p-1.5 rounded-lg"><X size={14} /></button>
                       </div>
                     ) : (
@@ -360,9 +372,9 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* 4. MODAL RECEIPT */}
+      {/* MODAL RECEIPT */}
       {showReceipt && lastTransaction && (
-        <div className="fixed inset-0 z-150 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 text-black overflow-y-auto">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 text-black overflow-y-auto">
           <div className="bg-white rounded-xl p-6 md:p-8 w-full max-w-sm my-auto shadow-2xl animate-in zoom-in-95 duration-300">
             <div id="printable-receipt-pos" className="bg-white p-5 font-mono text-black border-2 border-dashed border-gray-200 rounded-xl leading-tight text-[10px] uppercase">
               <div className="text-center border-b-2 border-dashed border-gray-200 pb-4 mb-5">
@@ -376,7 +388,7 @@ export default function POSPage() {
               <div className="space-y-3 border-b-2 border-dashed border-gray-200 pb-5 mb-5">
                 {lastTransaction.items.map((it: any, i: number) => (
                   <div key={i} className="flex justify-between font-bold">
-                    <span className="max-w-30 truncate">{it.name} SZ{it.size} x{it.quantity}</span>
+                    <span className="max-w-[120px] truncate">{it.name} SZ{it.size} x{it.quantity}</span>
                     <span>RP {(it.price * it.quantity).toLocaleString()}</span>
                   </div>
                 ))}
@@ -399,7 +411,6 @@ export default function POSPage() {
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #000; border-radius: 10px; }
-        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         @media print {
           body * { visibility: hidden; }
           #printable-receipt-pos, #printable-receipt-pos * { visibility: visible; }

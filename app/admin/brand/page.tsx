@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Edit2, Trash2, Save, X, Tag, Loader2, ImageIcon, ImagePlus } from 'lucide-react'
+import { Edit2, Trash2, Save, X, Tag, Loader2, ImageIcon, ImagePlus } from 'lucide-react'
+
+// PENTING: Mencegah error build di EasyPanel dengan memaksa rendering dinamis
+export const dynamic = 'force-dynamic'
 
 export default function AdminBrandPage() {
   const [brands, setBrands] = useState<any[]>([])
@@ -13,24 +16,36 @@ export default function AdminBrandPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
+  // FETCH: Ambil data brand dari database VPS
   const fetchBrands = useCallback(async () => {
     try {
       setLoading(true)
       const res = await fetch('/api/vps-db', {
         method: 'POST',
-        body: JSON.stringify({ sql: 'SELECT * FROM public."Brand" ORDER BY "createdAt" DESC' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          // Menggunakan tanda petik dua karena PostgreSQL di Linux (VPS) Case Sensitive
+          sql: 'SELECT * FROM public."Brand" ORDER BY "createdAt" DESC' 
+        })
       })
       const result = await res.json()
       setBrands(result.data || [])
-    } finally { setLoading(false) }
+    } catch (err) {
+      console.error("Gagal sinkron data VPS:", err)
+    } finally { 
+      setLoading(false) 
+    }
   }, [])
 
+  // FETCH: Ambil data media dari folder uploads
   const fetchMedia = async () => {
     try {
       const res = await fetch('/api/media')
       const result = await res.json()
       setMediaFiles(result.data || [])
-    } catch (err) { console.error("Gagal load media") }
+    } catch (err) { 
+      console.error("Gagal load media:", err) 
+    }
   }
 
   useEffect(() => { 
@@ -38,43 +53,74 @@ export default function AdminBrandPage() {
     fetchMedia()
   }, [fetchBrands])
 
+  // ADD: Tambah Brand baru
   async function handleAddBrand() {
     if (!newBrand.trim()) return
     const slug = newBrand.toLowerCase().replace(/\s+/g, '-')
-    await fetch('/api/vps-db', {
-      method: 'POST',
-      body: JSON.stringify({
-        sql: 'INSERT INTO public."Brand" (name, slug, images) VALUES ($1, $2, $3)',
-        params: [newBrand, slug, selectedImage]
+    try {
+      await fetch('/api/vps-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql: 'INSERT INTO public."Brand" (name, slug, images) VALUES ($1, $2, $3)',
+          params: [newBrand, slug, selectedImage]
+        })
       })
-    })
-    setNewBrand(''); setSelectedImage('')
-    fetchBrands()
+      
+      // Paksa Next.js refresh cache agar logo baru langsung muncul di frontend
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
+      
+      setNewBrand('')
+      setSelectedImage('')
+      fetchBrands()
+    } catch (err) {
+      alert("Gagal tambah brand")
+    }
   }
 
+  // UPDATE: Edit Nama Brand
   async function handleUpdateBrand(id: string) {
+    if (!editName.trim()) return
     const slug = editName.toLowerCase().replace(/\s+/g, '-')
-    await fetch('/api/vps-db', {
-      method: 'POST',
-      body: JSON.stringify({
-        sql: 'UPDATE public."Brand" SET name = $1, slug = $2 WHERE id = $3',
-        params: [editName, slug, id]
+    try {
+      await fetch('/api/vps-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql: 'UPDATE public."Brand" SET name = $1, slug = $2 WHERE id = $3',
+          params: [editName, slug, id]
+        })
       })
-    })
-    setEditingId(null)
-    fetchBrands()
+      
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
+      
+      setEditingId(null)
+      setEditName('')
+      fetchBrands()
+    } catch (err) {
+      alert("Gagal update brand")
+    }
   }
 
+  // DELETE: Hapus Brand
   async function handleDeleteBrand(id: string) {
     if (!confirm('Hapus brand ini?')) return
-    await fetch('/api/vps-db', {
-      method: 'POST',
-      body: JSON.stringify({
-        sql: 'DELETE FROM public."Brand" WHERE id = $1',
-        params: [id]
+    try {
+      await fetch('/api/vps-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql: 'DELETE FROM public."Brand" WHERE id = $1',
+          params: [id]
+        })
       })
-    })
-    fetchBrands()
+      
+      await fetch('/api/revalidate?secret=tri_rahasia_123')
+      
+      fetchBrands()
+    } catch (err) {
+      alert("Gagal hapus brand")
+    }
   }
 
   return (
@@ -129,7 +175,6 @@ export default function AdminBrandPage() {
                 <tr key={brand.id} className="group hover:bg-zinc-50/50 transition-all">
                   <td className="px-4 md:px-8 py-4 md:py-6">
                     <div className="flex items-center gap-4 md:gap-6">
-                      {/* LOGO CONTAINER */}
                       <div 
                         onClick={() => { setEditingId(brand.id); setIsMediaOpen(true); }}
                         className="w-12 h-12 md:w-16 md:h-16 bg-white border-2 border-zinc-100 rounded-2xl flex items-center justify-center overflow-hidden p-2 cursor-pointer hover:border-black transition-all relative group/img shrink-0"
@@ -139,10 +184,9 @@ export default function AdminBrandPage() {
                         ) : (
                           <ImageIcon className="text-zinc-200" />
                         )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white text-[8px] font-black transition-opacity">CHANGE</div>
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white text-[8px] font-black transition-opacity uppercase">Change</div>
                       </div>
 
-                      {/* NAME / EDIT INPUT */}
                       <div className="flex-1 min-w-0">
                         {editingId === brand.id && editName !== '' ? (
                           <div className="flex items-center gap-2 w-full max-w-xs">
@@ -187,9 +231,9 @@ export default function AdminBrandPage() {
         </div>
       </div>
 
-      {/* MODAL MEDIA PICKER - FULLY RESPONSIVE GRID */}
+      {/* MODAL MEDIA PICKER */}
       {isMediaOpen && (
-        <div className="fixed inset-0 z-99 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-10">
+        <div className="fixed inset-0 z-100 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-10">
           <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl">
             <div className="p-6 md:p-8 border-b-2 border-zinc-50 flex justify-between items-center">
               <div className="space-y-1">
@@ -207,6 +251,7 @@ export default function AdminBrandPage() {
                     if (editingId) {
                       fetch('/api/vps-db', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           sql: 'UPDATE public."Brand" SET images = $1 WHERE id = $2',
                           params: [file.name, editingId]

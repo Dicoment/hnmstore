@@ -5,11 +5,10 @@ import {
   LayoutDashboard, Tags, Shapes, PanelLeft, PlusCircle, Package, 
   ShoppingCart, Settings, LogOut, User, ImageIcon, Users, 
   MessageSquare, ChevronRight, Boxes, FileBarChart, Menu, 
-  X as CloseIcon, RefreshCcw, History, Globe // Tambah Globe
+  X as CloseIcon, RefreshCcw, History, Globe
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname, useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
+import { usePathname } from 'next/navigation'
 
 export default function AdminLayout({
   children,
@@ -22,25 +21,26 @@ export default function AdminLayout({
   const [adminEmail, setAdminEmail] = useState('')
   const pathname = usePathname()
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
   useEffect(() => {
     const getAdminData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      // Ambil email dari localStorage hasil login JWT
+      const userEmail = localStorage.getItem('user_email')
+      
+      if (!userEmail) {
         window.location.href = '/login'
         return
       }
-      setAdminEmail(user.email || '')
+      
+      setAdminEmail(userEmail)
+      
       try {
+        // Ambil nama lengkap dari database VPS berdasarkan email
         const res = await fetch('/api/vps-db', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            sql: 'SELECT full_name FROM public."Profiles" WHERE id = $1 LIMIT 1',
-            params: [user.id]
+            sql: 'SELECT full_name FROM public."Profiles" WHERE email = $1 LIMIT 1',
+            params: [userEmail]
           })
         })
         const result = await res.json()
@@ -52,15 +52,17 @@ export default function AdminLayout({
       }
     }
     getAdminData()
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
+  const handleLogout = () => {
+    // Logout murni VPS: Hapus localStorage dan arahkan ke login
     localStorage.clear()
+    // Cookie session-token akan dihapus otomatis oleh sistem jika kita tambahkan API logout, 
+    // tapi untuk sementara kita paksa pindah halaman.
     window.location.href = '/login'
   }
 
@@ -103,7 +105,6 @@ export default function AdminLayout({
             </button>
           </div>
 
-          {/* Tombol Visit Website - Ala WordPress */}
           {(!collapsed || mobileOpen) ? (
              <Link 
               href="/" 
@@ -125,7 +126,6 @@ export default function AdminLayout({
           )}
         </div>
 
-        {/* Menu Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
           <SidebarItem href="/admin" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin'} />
 
@@ -148,7 +148,6 @@ export default function AdminLayout({
           <SidebarItem href="/admin/wa-settings" icon={<MessageSquare size={18} />} label="WhatsApp Admin" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/wa-settings'} />
         </nav>
 
-        {/* Profile Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50">
           <div className={`flex items-center gap-3 ${(collapsed && !mobileOpen) ? "justify-center" : ""}`}>
             <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-white shadow-lg shrink-0">

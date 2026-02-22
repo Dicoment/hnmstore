@@ -4,21 +4,18 @@ import { useState, useEffect } from 'react'
 import { 
   ClipboardList, ArrowLeft, Printer, 
   Calendar, Banknote, ShoppingBag, Loader2,
-  AlertCircle, Camera, User, TrendingUp, X
+  AlertCircle, User, X
 } from 'lucide-react'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/ssr'
+
+// PENTING: Paksa rendering dinamis agar data shift selalu segar dari VPS
+export const dynamic = 'force-dynamic'
 
 export default function LaporanShiftPage() {
   const [report, setReport] = useState<any>(null)
   const [returns, setReturns] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [adminName, setAdminName] = useState('')
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
 
   useEffect(() => {
     fetchData()
@@ -27,25 +24,31 @@ export default function LaporanShiftPage() {
   async function fetchData() {
     try {
       setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      
+      // Ambil email user dari localStorage yang kita simpan pas Login tadi
+      const userEmail = localStorage.getItem('user_email')
+      if (!userEmail) return
 
       const startOfDay = new Date()
       startOfDay.setHours(0, 0, 0, 0)
 
-      // QUERY SQL: Pastikan hanya mengambil data hari ini berdasarkan user yang login
+      // QUERY SQL: Menyesuaikan tabel Profiles & Transactions di VPS lu
       const sql = `
         SELECT 
-          (SELECT full_name FROM public."Profiles" WHERE id = $1 LIMIT 1) as admin_name,
+          (SELECT full_name FROM public."Profiles" WHERE email = $1 LIMIT 1) as admin_name,
           (SELECT json_agg(t.*) FROM public."Transactions" t 
-           WHERE t.created_by = $1 AND t.status = 'SUCCESS' AND t.created_at >= $2) as sales,
+           WHERE t.created_by_email = $1 AND t.status = 'SUCCESS' AND t.created_at >= $2) as sales,
           (SELECT json_agg(t.*) FROM public."Transactions" t 
-           WHERE t.created_by = $1 AND t.status = 'RETURNED' AND t.created_at >= $2) as returned
+           WHERE t.created_by_email = $1 AND t.status = 'RETURNED' AND t.created_at >= $2) as returned
       `
       
       const res = await fetch('/api/vps-db', {
         method: 'POST',
-        body: JSON.stringify({ sql, params: [user.id, startOfDay.toISOString()] })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sql, 
+          params: [userEmail, startOfDay.toISOString()] 
+        })
       })
       
       const { data } = await res.json()
@@ -55,20 +58,19 @@ export default function LaporanShiftPage() {
       const salesData = dbResult.sales || []
       const returnData = dbResult.returned || []
 
-      // KALKULASI: Pastikan tidak ada hasil minus jika data baru dimulai
       const totalGross = salesData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
       const totalReturnAmount = returnData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
 
-  setReport({
-  totalGross,
-  totalReturnAmount,
-  netSales: totalGross, // Kas di laci adalah uang masuk dari penjualan sukses
-  orderCount: salesData.length,
-  returnCount: returnData.length
-})
+      setReport({
+        totalGross,
+        totalReturnAmount,
+        netSales: totalGross, 
+        orderCount: salesData.length,
+        returnCount: returnData.length
+      })
       setReturns(returnData)
     } catch (err) {
-      console.error(err)
+      console.error("Gagal load laporan shift:", err)
     } finally {
       setLoading(false)
     }
@@ -76,7 +78,7 @@ export default function LaporanShiftPage() {
 
   return (
     <div className="p-0 bg-white min-h-screen text-black font-sans overflow-x-hidden">
-      {/* HEADER NAV - COMPACT */}
+      {/* HEADER NAV */}
       <div className="border-b-2 border-zinc-100 px-4 py-3 flex items-center justify-between print:hidden">
         <Link href="/admin/pos" className="flex items-center gap-2 text-zinc-400 hover:text-black transition-all">
           <div className="p-1.5 bg-zinc-50 rounded-lg">
@@ -86,20 +88,19 @@ export default function LaporanShiftPage() {
         </Link>
         <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-lg">
           <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-[8px] font-black uppercase tracking-widest text-white">Live Sync</span>
+          <span className="text-[8px] font-black uppercase tracking-widest text-white">VPS Live Sync</span>
         </div>
       </div>
 
-      <div className="w-full max-w-350 mx-auto px-4 md:px-8 py-6">
+      <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-40 gap-4">
             <Loader2 className="animate-spin text-black" size={40} strokeWidth={3} />
             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400">Processing Analytics...</p>
           </div>
         ) : (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            
-            {/* HERO SECTION - REDUCED SCALE */}
+          <div className="space-y-6">
+            {/* HERO SECTION */}
             <div className="w-full border-[3px] border-black rounded-xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 bg-white shadow-[10px_10px_0px_0px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-6">
                 <div className="w-16 h-16 bg-black rounded-xl flex items-center justify-center text-white shadow-xl">
@@ -127,9 +128,9 @@ export default function LaporanShiftPage() {
               </div>
             </div>
 
-            {/* STATS GRID - COMPACT */}
+            {/* STATS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-zinc-50 p-6 rounded-xl border-2 border-zinc-100 group transition-all hover:border-black">
+              <div className="bg-zinc-50 p-6 rounded-xl border-2 border-zinc-100">
                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-4">Gross Sales</p>
                 <p className="text-2xl font-black tracking-tighter">RP {report?.totalGross.toLocaleString('id-ID')}</p>
                 <div className="mt-6 flex items-center gap-2">
@@ -158,7 +159,7 @@ export default function LaporanShiftPage() {
               </div>
             </div>
 
-            {/* ATTACHMENTS - GRID 3 COLUMNS */}
+            {/* ATTACHMENTS */}
             <div className="space-y-6">
               <div className="flex items-center justify-between border-l-4 border-black pl-4">
                  <h3 className="text-sm font-black uppercase tracking-[0.3em] flex items-center gap-3 text-black">
@@ -178,7 +179,7 @@ export default function LaporanShiftPage() {
                     <div key={item.id} className="flex items-center justify-between p-5 bg-white border-2 border-zinc-100 rounded-xl hover:border-black transition-all">
                       <div className="flex items-center gap-4">
                         <div className="w-16 h-16 bg-zinc-100 rounded-lg overflow-hidden relative border border-zinc-100">
-                          <img src={item.return_proof_url || 'https://placehold.co/150x150?text=NO+IMAGE'} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-300" />
+                          <img src={item.return_proof_url ? `/uploads/${item.return_proof_url}` : 'https://placehold.co/150x150?text=NO+IMAGE'} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-300" alt="retur proof" />
                         </div>
                         <div className="space-y-1">
                           <p className="text-[9px] font-black uppercase tracking-tight text-zinc-400">#{item.id.slice(0,8)}</p>
@@ -195,7 +196,7 @@ export default function LaporanShiftPage() {
               )}
             </div>
 
-            {/* PRINT FOOTER - REDUCED SIZE */}
+            {/* PRINT FOOTER */}
             <div className="mt-12 pt-8 border-t-2 border-zinc-100 flex flex-col md:flex-row gap-6 items-center justify-between print:hidden pb-10">
               <div className="flex items-center gap-3 bg-zinc-50 p-3 rounded-lg border border-zinc-100">
                  <AlertCircle size={18} className="text-zinc-400" />
@@ -220,7 +221,7 @@ export default function LaporanShiftPage() {
           body { background: white !important; }
           .print\:hidden, button, .border-b-2 { display: none !important; }
           .rounded-xl { border-radius: 0 !important; border: 1px solid #000 !important; }
-          .shadow-xl, .shadow-10px { box-shadow: none !important; }
+          .shadow-xl { box-shadow: none !important; }
           .border-[3px], .border-4 { border-width: 1px !important; }
           .p-6, .p-8 { padding: 10px !important; }
         }
