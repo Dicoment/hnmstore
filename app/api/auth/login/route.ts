@@ -6,7 +6,7 @@ import { Pool } from 'pg' // Import Pool langsung di sini
 // Inisialisasi Pool langsung di dalam API Login
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Penting untuk koneksi VPS
+  ssl: false 
 })
 
 export async function POST(request: Request) {
