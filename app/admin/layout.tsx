@@ -19,22 +19,23 @@ export default function AdminLayout({
   const [mobileOpen, setMobileOpen] = useState(false) 
   const [adminName, setAdminName] = useState('Admin')
   const [adminEmail, setAdminEmail] = useState('')
+  const [isDataLoaded, setIsDataLoaded] = useState(false) 
   const pathname = usePathname()
 
   useEffect(() => {
     const getAdminData = async () => {
-      // Ambil email dari localStorage hasil login JWT
-      const userEmail = localStorage.getItem('user_email')
-      
-      if (!userEmail) {
-        window.location.href = '/login'
-        return
-      }
-      
-      setAdminEmail(userEmail)
-      
       try {
-        // Ambil nama lengkap dari database VPS berdasarkan email
+        const userEmail = localStorage.getItem('user_email')
+        
+        // JANGAN REDIRECT MANUAL DI SINI. 
+        // Biarkan Middleware yang melempar ke /login jika token ga ada.
+        if (!userEmail) {
+          setIsDataLoaded(true)
+          return
+        }
+        
+        setAdminEmail(userEmail)
+        
         const res = await fetch('/api/vps-db', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -43,12 +44,16 @@ export default function AdminLayout({
             params: [userEmail]
           })
         })
+        
         const result = await res.json()
-        if (result.data?.[0]) {
-          setAdminName(result.data[0].full_name)
+        
+        if (result.data && result.data.length > 0) {
+          setAdminName(result.data[0].full_name || 'Admin')
         }
       } catch (err) {
         console.error("Gagal load profil admin:", err)
+      } finally {
+        setIsDataLoaded(true) // INI WAJIB: Loading harus mati meskipun fetch gagal.
       }
     }
     getAdminData()
@@ -58,17 +63,35 @@ export default function AdminLayout({
     setMobileOpen(false)
   }, [pathname])
 
-  const handleLogout = () => {
-    // Logout murni VPS: Hapus localStorage dan arahkan ke login
-    localStorage.clear()
-    // Cookie session-token akan dihapus otomatis oleh sistem jika kita tambahkan API logout, 
-    // tapi untuk sementara kita paksa pindah halaman.
-    window.location.href = '/login'
+const handleLogout = async () => {
+    try {
+      // 1. Panggil API logout untuk hapus cookie server-side
+      await fetch('/api/auth/logout', { method: 'POST' })
+      
+      // 2. Bersihkan sisa data di local storage
+      localStorage.clear()
+      
+      // 3. Paksa browser pindah ke login dan refresh total
+      window.location.replace('/login')
+    } catch (err) {
+      // Fallback jika API gagal, tetap hapus local dan pindah
+      localStorage.clear()
+      window.location.replace('/login')
+    }
+  }
+
+  // Tampilan Loading Screen standar
+  if (!isDataLoaded) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-white text-black">
+        <RefreshCcw className="animate-spin mb-4" size={32} />
+        <p className="text-[10px] font-bold uppercase tracking-[0.4em]">Dashboard Loading...</p>
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc] font-sans text-black">
-      
       {/* Overlay Mobile */}
       {mobileOpen && (
         <div 
