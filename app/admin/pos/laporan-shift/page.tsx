@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
-  ClipboardList, ArrowLeft, Printer, 
+  ArrowLeft, Printer, 
   Calendar, Banknote, ShoppingBag, Loader2,
-  AlertCircle, User, X
+  AlertCircle, User, RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
 
-// PENTING: Paksa rendering dinamis agar data shift selalu segar dari VPS
 export const dynamic = 'force-dynamic'
 
 export default function LaporanShiftPage() {
@@ -17,213 +16,184 @@ export default function LaporanShiftPage() {
   const [loading, setLoading] = useState(true)
   const [adminName, setAdminName] = useState('')
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      
-      // Ambil email user dari localStorage yang kita simpan pas Login tadi
       const userEmail = localStorage.getItem('user_email')
-      if (!userEmail) return
+      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
 
-      const startOfDay = new Date()
-      startOfDay.setHours(0, 0, 0, 0)
-
-      // QUERY SQL: Menyesuaikan tabel Profiles & Transactions di VPS lu
       const sql = `
         SELECT 
           (SELECT full_name FROM public."Profiles" WHERE email = $1 LIMIT 1) as admin_name,
           (SELECT json_agg(t.*) FROM public."Transactions" t 
-           WHERE t.created_by_email = $1 AND t.status = 'SUCCESS' AND t.created_at >= $2) as sales,
+            WHERE t.status = 'SUCCESS' AND t.created_at >= $2) as sales,
           (SELECT json_agg(t.*) FROM public."Transactions" t 
-           WHERE t.created_by_email = $1 AND t.status = 'RETURNED' AND t.created_at >= $2) as returned
+            WHERE t.status = 'RETURNED' AND t.created_at >= $2) as returned
       `
-      
       const res = await fetch('/api/vps-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sql, 
-          params: [userEmail, startOfDay.toISOString()] 
-        })
+        body: JSON.stringify({ sql, params: [userEmail || '', startOfDay.toISOString()] })
       })
-      
-      const { data } = await res.json()
-      const dbResult = data[0]
+      const result = await res.json()
+      if (result.data && result.data[0]) {
+        const dbResult = result.data[0]
+        setAdminName(dbResult.admin_name || 'HnM Store Owner')
+        const salesData = dbResult.sales || []
+        const returnData = dbResult.returned || []
+        const totalGross = salesData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
+        const totalReturnAmount = returnData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
 
-      setAdminName(dbResult.admin_name || 'Admin')
-      const salesData = dbResult.sales || []
-      const returnData = dbResult.returned || []
+        // LOGIC ASLI LU
+        setReport({ totalGross, totalReturnAmount, netSales: totalGross, orderCount: salesData.length, returnCount: returnData.length })
+        setReturns(returnData)
+      }
+    } catch (err) { console.error(err) } finally { setLoading(false) }
+  }, [])
 
-      const totalGross = salesData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
-      const totalReturnAmount = returnData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
+  useEffect(() => { fetchData() }, [fetchData])
 
-      setReport({
-        totalGross,
-        totalReturnAmount,
-        netSales: totalGross, 
-        orderCount: salesData.length,
-        returnCount: returnData.length
-      })
-      setReturns(returnData)
-    } catch (err) {
-      console.error("Gagal load laporan shift:", err)
-    } finally {
-      setLoading(false)
+  const handlePrintReport = () => {
+    const content = document.getElementById('report-content-to-print')?.innerHTML;
+    const win = window.open('', '_blank', 'width=900,height=900');
+    if (win && content) {
+      win.document.write(`
+        <html>
+          <head>
+            <title>SHIFT REPORT - HNM STORE</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              @media print { body { padding: 20px; } @page { margin: 10mm; } }
+              body { font-family: sans-serif; color: black; background: white; text-transform: uppercase; }
+            </style>
+          </head>
+          <body onload="setTimeout(() => { window.print(); window.close(); }, 500)">
+            <div class="max-w-4xl mx-auto">${content}</div>
+          </body>
+        </html>
+      `);
+      win.document.close();
     }
-  }
+  };
+
+  if (loading) return (
+    <div className="h-screen flex flex-col items-center justify-center bg-white">
+      <Loader2 className="animate-spin text-black" size={40} />
+      <p className="text-xs font-bold uppercase mt-4 text-black tracking-widest">Syncing Data...</p>
+    </div>
+  )
 
   return (
-    <div className="p-0 bg-white min-h-screen text-black font-sans overflow-x-hidden">
-      {/* HEADER NAV */}
-      <div className="border-b-2 border-zinc-100 px-4 py-3 flex items-center justify-between print:hidden">
-        <Link href="/admin/pos" className="flex items-center gap-2 text-zinc-400 hover:text-black transition-all">
-          <div className="p-1.5 bg-zinc-50 rounded-lg">
-            <ArrowLeft size={16} strokeWidth={3}/>
-          </div>
-          <span className="text-[9px] font-black uppercase tracking-widest">Back to POS</span>
+    <div className="min-h-screen bg-white text-black font-sans w-full overflow-x-hidden pb-20">
+      {/* HEADER NAV - RESPONSIVE PADDING */}
+      <div className="border-b border-gray-100 px-4 lg:px-10 py-6 flex items-center justify-between sticky top-0 z-40 bg-white/90 backdrop-blur-md w-full print:hidden">
+        <Link href="/admin/pos" className="flex items-center gap-2 text-gray-400 hover:text-black transition-all">
+          <ArrowLeft size={18} />
+          <span className="text-xs font-bold uppercase tracking-widest">POS</span>
         </Link>
-        <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-lg">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-[8px] font-black uppercase tracking-widest text-white">VPS Live Sync</span>
-        </div>
+        <button onClick={fetchData} className="flex items-center gap-2 bg-black text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest active:scale-95 transition-all shadow-xl">
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+        </button>
       </div>
 
-      <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-6">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-40 gap-4">
-            <Loader2 className="animate-spin text-black" size={40} strokeWidth={3} />
-            <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400">Processing Analytics...</p>
+      <div className="w-full px-4 lg:px-10 py-8 lg:py-10 space-y-8 lg:space-y-10" id="report-content-to-print">
+        
+        {/* HERO SECTION - RATA & RESPONSIF */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 pb-8 border-b border-gray-100">
+          <div className="space-y-2 text-center lg:text-left w-full lg:w-auto">
+            <h1 className="text-3xl lg:text-4xl font-bold uppercase tracking-tighter leading-none">Laporan Shift</h1>
+            <p className="text-[12px] text-gray-400 font-bold uppercase tracking-widest">HnM Store • Daily Kasir Terminal</p>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {/* HERO SECTION */}
-            <div className="w-full border-[3px] border-black rounded-xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 bg-white shadow-[10px_10px_0px_0px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-black rounded-xl flex items-center justify-center text-white shadow-xl">
-                  <ClipboardList size={32} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-black uppercase tracking-tighter">Laporan Shift</h1>
-                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.3em]">HnM Analytics Terminal</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="bg-zinc-50 px-5 py-4 rounded-xl border-2 border-zinc-100 min-w-45">
-                  <div className="flex items-center gap-2 mb-2 border-b border-zinc-200 pb-2">
-                    <User size={14} className="text-black" />
-                    <p className="text-[10px] font-black uppercase tracking-tight">{adminName}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Calendar size={14} />
-                    <p className="text-[9px] font-black uppercase tracking-wider">
-                      {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          <div className="bg-gray-50 px-6 py-5 rounded-2xl border border-gray-100 flex flex-col gap-2 w-full lg:w-auto min-w-70">
+            <div className="flex items-center justify-center lg:justify-start gap-3 text-black border-b border-gray-200 pb-2">
+              <User size={16} className="text-gray-400" />
+              <span className="text-xs font-bold uppercase tracking-wide">{adminName}</span>
             </div>
-
-            {/* STATS GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-zinc-50 p-6 rounded-xl border-2 border-zinc-100">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-4">Gross Sales</p>
-                <p className="text-2xl font-black tracking-tighter">RP {report?.totalGross.toLocaleString('id-ID')}</p>
-                <div className="mt-6 flex items-center gap-2">
-                  <ShoppingBag size={12} className="text-zinc-400"/>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{report?.orderCount} Transaksi</span>
-                </div>
-              </div>
-
-              <div className="bg-red-50 p-6 rounded-xl border-2 border-red-100">
-                <p className="text-[9px] font-black text-red-400 uppercase tracking-[0.2em] mb-4">Total Retur</p>
-                <p className="text-2xl font-black tracking-tighter text-red-600">RP {report?.totalReturnAmount.toLocaleString('id-ID')}</p>
-                <div className="mt-6 flex items-center gap-2">
-                  <X size={12} className="text-red-400" strokeWidth={3} />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-red-500">{report?.returnCount} Item Balik</span>
-                </div>
-              </div>
-
-              <div className="bg-black p-6 rounded-xl shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-1.5 h-full bg-green-500" />
-                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Kas Bersih (Setoran)</p>
-                <p className="text-3xl font-black text-white tracking-tighter">RP {report?.netSales.toLocaleString('id-ID')}</p>
-                <div className="mt-6 flex items-center gap-2">
-                   <Banknote size={16} className="text-green-500" />
-                   <span className="text-[9px] font-black text-green-500 uppercase tracking-[0.2em]">Wajib Setoran</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ATTACHMENTS */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-l-4 border-black pl-4">
-                 <h3 className="text-sm font-black uppercase tracking-[0.3em] flex items-center gap-3 text-black">
-                  <AlertCircle size={18} /> Bukti Lampiran Retur
-                </h3>
-                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{returns.length} Verifikasi</span>
-              </div>
-              
-              {returns.length === 0 ? (
-                <div className="bg-zinc-50 border-2 border-dashed border-zinc-100 rounded-xl p-16 text-center">
-                  <ShoppingBag size={40} className="mx-auto text-zinc-200 mb-4" strokeWidth={1} />
-                  <p className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.4em]">Tidak Ada Mutasi Retur Shift Ini</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {returns.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-5 bg-white border-2 border-zinc-100 rounded-xl hover:border-black transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-zinc-100 rounded-lg overflow-hidden relative border border-zinc-100">
-                          <img src={item.return_proof_url ? `/uploads/${item.return_proof_url}` : 'https://placehold.co/150x150?text=NO+IMAGE'} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-300" alt="retur proof" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-black uppercase tracking-tight text-zinc-400">#{item.id.slice(0,8)}</p>
-                          <p className="text-[10px] font-bold text-red-600 uppercase leading-tight max-w-30 truncate">{item.return_reason || 'Retur'}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                          <p className="text-sm font-black text-red-600">-RP {Number(item.total).toLocaleString('id-ID')}</p>
-                          <p className="text-[7px] font-black text-zinc-300 uppercase mt-1">Verified</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* PRINT FOOTER */}
-            <div className="mt-12 pt-8 border-t-2 border-zinc-100 flex flex-col md:flex-row gap-6 items-center justify-between print:hidden pb-10">
-              <div className="flex items-center gap-3 bg-zinc-50 p-3 rounded-lg border border-zinc-100">
-                 <AlertCircle size={18} className="text-zinc-400" />
-                 <p className="text-[9px] font-bold text-zinc-400 uppercase leading-relaxed max-w-xs">
-                  Cek fisik uang di laci sebelum serah terima shift.
-                </p>
-              </div>
-              <button 
-                onClick={() => window.print()}
-                className="w-full md:w-auto bg-black text-white px-10 py-5 rounded-xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-zinc-800 transition-all active:scale-95 shadow-xl"
-              >
-                <Printer size={20} strokeWidth={3} /> Print Report
-              </button>
+            <div className="flex items-center justify-center lg:justify-start gap-3 text-gray-400">
+              <Calendar size={16} />
+              <span className="text-xs font-bold uppercase">{new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* STATS GRID - 1 COL MOBILE / 3 COLS DESKTOP */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gray-50 border border-gray-100 p-8 rounded-2xl space-y-4 shadow-sm">
+            <div className="flex justify-between items-center text-gray-400 font-bold text-xs uppercase tracking-widest">
+              <span>Gross Sales</span><ShoppingBag size={18}/>
+            </div>
+            <p className="text-3xl font-bold tracking-tight">Rp {(report?.totalGross || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">{report?.orderCount || 0} Transaksi</p>
+          </div>
+
+          <div className="bg-red-50/50 border border-red-100 p-8 rounded-2xl space-y-4 shadow-sm">
+            <div className="flex justify-between items-center text-red-400 font-bold text-xs uppercase tracking-widest">
+              <span>Total Retur</span><RefreshCw size={18}/>
+            </div>
+            <p className="text-3xl font-bold text-red-600 tracking-tight">Rp {(report?.totalReturnAmount || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[12px] font-bold text-red-400 uppercase tracking-widest">{report?.returnCount || 0} Items</p>
+          </div>
+
+          <div className="bg-black p-8 rounded-2xl space-y-4 relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-2 h-full bg-green-500" />
+            <div className="flex justify-between items-center text-gray-500 font-bold text-xs uppercase tracking-widest">
+              <span>Kas Bersih</span><Banknote size={18} className="text-green-500"/>
+            </div>
+            <p className="text-4xl font-bold text-white tracking-tighter">Rp {(report?.netSales || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[12px] font-bold text-green-500 uppercase tracking-widest">Setoran Laci</p>
+          </div>
+        </div>
+
+        {/* LAMPIRAN RETUR - GRID RESPONSIVE */}
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center gap-3 border-l-4 border-black pl-5">
+            <AlertCircle size={20} />
+            <h3 className="text-sm font-bold uppercase tracking-widest">Bukti Lampiran Retur</h3>
+          </div>
+          
+          {returns.length === 0 ? (
+            <div className="bg-gray-50 border-2 border-dashed border-gray-100 rounded-3xl p-20 text-center">
+              <p className="text-[12px] font-bold text-gray-300 uppercase tracking-[0.2em]">Tidak ada data retur shift ini</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {returns.map((item) => (
+                <div key={item.id} className="p-5 bg-white border border-gray-100 rounded-2xl hover:border-black transition-all group flex items-center gap-5 shadow-sm">
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0">
+                    <img 
+                      src={item.return_proof_url || 'https://placehold.co/200x200?text=NO+IMAGE'} 
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
+                      alt="proof" 
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">#{item.id?.slice(0,8)}</p>
+                    <p className="text-[12px] font-bold text-red-600 uppercase truncate mt-1">{item.return_reason || 'Retur Sepatu'}</p>
+                    <p className="text-lg font-bold mt-1 text-black">-Rp {Number(item.total || 0).toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* FOOTER ACTION */}
+        <div className="pt-10 print:hidden">
+          <button 
+            onClick={handlePrintReport}
+            className="w-full bg-black text-white py-6 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:bg-zinc-800 transition-all active:scale-95 shadow-2xl"
+          >
+            <Printer size={20} /> Cetak Laporan Resmi
+          </button>
+        </div>
       </div>
 
       <style jsx global>{`
         @media print {
-          @page { margin: 15mm; }
-          body { background: white !important; }
-          .print\:hidden, button, .border-b-2 { display: none !important; }
-          .rounded-xl { border-radius: 0 !important; border: 1px solid #000 !important; }
-          .shadow-xl { box-shadow: none !important; }
-          .border-[3px], .border-4 { border-width: 1px !important; }
-          .p-6, .p-8 { padding: 10px !important; }
+          .print\\:hidden { display: none !important; }
+          body { padding: 0 !important; background: white !important; }
+          .rounded-2xl, .rounded-xl { border-radius: 8px !important; border: 1px solid #eee !important; }
+          .shadow-2xl, .shadow-sm { box-shadow: none !important; }
         }
       `}</style>
     </div>
