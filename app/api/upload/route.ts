@@ -15,8 +15,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Mana filenya?' }, { status: 400 });
     }
 
-    // 1. GUNAKAN PATH ABSOLUT (Sesuai Mounting EasyPanel)
-    const uploadDir = '/app/public/uploads'; 
+    // 1. UBAH KE PATH BARU (DI LUAR FOLDER PUBLIC)
+    // Ini biar Next.js nggak perlu restart buat ngebaca file baru [cite: 2026-02-16]
+    const uploadDir = '/app/data-uploads'; 
     
     // Pastikan folder tersedia
     try {
@@ -35,18 +36,16 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
     await fs.writeFile(filePath, buffer);
 
-    // --- BAGIAN PENTING: OTOMATISASI IZIN AKSES ---
-try {
-      // 1. Buka gembok file akses penuh
+    // --- OTOMATISASI IZIN AKSES (TETAP PERLU) ---
+    try {
       await execPromise(`chmod 777 ${filePath}`);
-      // 2. Paksa pemilik file jadi user web server (www-data)
       await execPromise(`chown www-data:www-data ${filePath}`);
     } catch (chmodErr: any) {
       console.error("Gagal ganti izin/owner file:", chmodErr.message);
     }
-    // ----------------------------------------------
 
-    // 4. Balikin URL path untuk Frontend
+    // 4. BALIKIN URL (TETAP /uploads/ BIAR GAK UBAH FRONTEND) [cite: 2026-02-02]
+    // Nanti kita buatin "pintu" di route sebelah biar URL ini nyambung ke folder baru [cite: 2026-02-16]
     const publicUrl = `/uploads/${fileName}`;
 
     return NextResponse.json({ url: publicUrl });
