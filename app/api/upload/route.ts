@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execPromise = promisify(exec);
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,14 +16,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. GUNAKAN PATH ABSOLUT (Sesuai Mounting EasyPanel)
-    // Jangan pakai process.cwd() karena Docker sering bingung baca volume
     const uploadDir = '/app/public/uploads'; 
     
     // Pastikan folder tersedia
     try {
       await fs.access(uploadDir);
     } catch {
-      // Jika folder belum ada (jarang terjadi kalau mounting benar), kita buatkan
       await fs.mkdir(uploadDir, { recursive: true });
     }
 
@@ -33,8 +35,16 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
     await fs.writeFile(filePath, buffer);
 
+    // --- BAGIAN PENTING: OTOMATISASI IZIN AKSES ---
+    try {
+      // Langsung buka gembok file yang baru saja dibuat agar bisa dibaca web server
+      await execPromise(`chmod 777 ${filePath}`);
+    } catch (chmodErr: any) {
+      console.error("Gagal ganti izin file:", chmodErr.message);
+    }
+    // ----------------------------------------------
+
     // 4. Balikin URL path untuk Frontend
-    // Next.js bakal baca ini dari folder public secara otomatis
     const publicUrl = `/uploads/${fileName}`;
 
     return NextResponse.json({ url: publicUrl });
