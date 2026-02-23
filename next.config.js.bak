@@ -1,0 +1,52 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Aktifkan fitur ini jika lu menggunakan struktur folder /app (Next.js 13+)
+  // experimental: {
+  //   appDir: true,
+  // },
+  
+  images: {
+    // Lu wajib daftarin semua sumber gambar luar di sini
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: '103.197.189.71', // IP VPS lu untuk akses via HTTP
+        port: '', // Biarkan kosong jika menggunakan port standar 80
+      },
+      {
+        protocol: 'https',
+        hostname: '103.197.189.71', // Tambah protokol HTTPS jika lu pasang SSL di IP
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'hnmstore.id', // Domain utama HnM Store
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.hnmstore.id', // Versi www biar aman
+        port: '',
+      },
+    ],
+    // Jika lu masih ada sisa gambar dari Supabase, tambahkan hostname supabase di sini
+    // unoptimized: true, // Nyalakan ini jika lu mau bypass optimasi gambar Next.js (buat debugging)
+  },
+
+  // Pengaturan keamanan header (Opsional tapi bagus buat Agency)
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+        ],
+      },
+    ]
+  },
+};
+
+export default nextConfig;

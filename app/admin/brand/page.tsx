@@ -124,8 +124,8 @@ export default function AdminBrandPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 font-sans text-black bg-[#FBFBFB] min-h-screen">
-      <div className="max-w-5xl mx-auto bg-white border-2 border-zinc-100 rounded-xl overflow-hidden shadow-sm">
+    <div className="p-4 font-sans text-black  min-h-screen">
+      <div className="w-full mx-auto bg-white border border-zinc-100 rounded-xl overflow-hidden shadow-sm">
         
         {/* HEADER & INPUT SECTION */}
         <div className="p-6 border-b-2 border-zinc-50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
