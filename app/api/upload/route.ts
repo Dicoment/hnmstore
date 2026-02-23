@@ -36,11 +36,13 @@ export async function POST(req: NextRequest) {
     await fs.writeFile(filePath, buffer);
 
     // --- BAGIAN PENTING: OTOMATISASI IZIN AKSES ---
-    try {
-      // Langsung buka gembok file yang baru saja dibuat agar bisa dibaca web server
+try {
+      // 1. Buka gembok file akses penuh
       await execPromise(`chmod 777 ${filePath}`);
+      // 2. Paksa pemilik file jadi user web server (www-data)
+      await execPromise(`chown www-data:www-data ${filePath}`);
     } catch (chmodErr: any) {
-      console.error("Gagal ganti izin file:", chmodErr.message);
+      console.error("Gagal ganti izin/owner file:", chmodErr.message);
     }
     // ----------------------------------------------
 
