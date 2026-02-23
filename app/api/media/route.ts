@@ -4,9 +4,9 @@ import path from 'path';
 
 export async function GET() {
   try {
-    const uploadDir = path.join(process.cwd(), 'public/uploads');
+    // 1. PINDAH KE ALAMAT BARU (Sesuai Mounting EasyPanel) [cite: 2026-02-02]
+    const uploadDir = '/app/data-uploads'; 
     
-    // Cek apakah folder ada, kalau belum ada balikin array kosong
     try {
       await fs.access(uploadDir);
     } catch {
@@ -15,21 +15,20 @@ export async function GET() {
 
     const filenames = await fs.readdir(uploadDir);
     
-    // Ambil detail file (size, dll)
     const files = await Promise.all(
       filenames.map(async (name) => {
         const stats = await fs.stat(path.join(uploadDir, name));
         return {
-          id: name, // Pake nama file sebagai ID
+          id: name,
           name: name,
           size: stats.size,
+          // URL Tetap /uploads/ karena sudah kita buatkan "Pintu" di route sebelah [cite: 2026-02-16]
           url: `/uploads/${name}`,
           createdAt: stats.birthtime
         };
       })
     );
 
-    // Urutkan berdasarkan yang terbaru
     files.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     return NextResponse.json({ data: files });
@@ -38,11 +37,11 @@ export async function GET() {
   }
 }
 
-// API untuk hapus file
 export async function DELETE(req: Request) {
   try {
     const { filenames } = await req.json();
-    const uploadDir = path.join(process.cwd(), 'public/uploads');
+    // 2. PASTIIN DELETE JUGA NYARI KE ALAMAT BARU [cite: 2026-02-02]
+    const uploadDir = '/app/data-uploads';
 
     for (const name of filenames) {
       const filePath = path.join(uploadDir, name);
