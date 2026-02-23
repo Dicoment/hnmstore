@@ -24,8 +24,10 @@ export default function MediaManagerPage() {
   
   const [activeBucket, setActiveBucket] = useState<'ProductImage' | 'ReturnImage'>('ProductImage')
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
+  
+  // TRIK NO 2: State untuk memaksa refresh URL gambar (Cache Buster)
+  const [refreshKey, setRefreshKey] = useState(Date.now())
 
-  // FETCH: Ambil data dari VPS berdasarkan tab yang aktif
   const fetchMedia = useCallback(async () => {
     try {
       setLoading(true)
@@ -37,6 +39,8 @@ export default function MediaManagerPage() {
         const sizeAccumulator = result.data.reduce((acc: number, f: any) => acc + f.size, 0)
         setTotalSize(sizeAccumulator)
         setSelectedFiles([]) 
+        // Update key setiap kali fetch biar URL gambar berubah sedikit
+        setRefreshKey(Date.now())
       }
     } catch (err) {
       console.error("Gagal sinkron media VPS:", err)
@@ -47,7 +51,6 @@ export default function MediaManagerPage() {
 
   useEffect(() => { fetchMedia() }, [fetchMedia])
 
-  // UPLOAD: Simpan ke folder VPS & Trigger Revalidate Otomatis
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files || e.target.files.length === 0) return
     setUploading(true)
@@ -64,16 +67,13 @@ export default function MediaManagerPage() {
         if (!res.ok) throw new Error("Gagal upload ke VPS")
       }
 
-      // MEMAKSA NEXT.JS REFRESH CACHE (Biar gambar gak pecah)
       await fetch('/api/revalidate?secret=tri_rahasia_123')
-      
       fetchMedia()
     } catch (err: any) {
       alert("Upload Gagal: " + err.message)
     } finally { setUploading(false) }
   }
 
-  // DELETE: Hapus file fisik di VPS & Trigger Revalidate Otomatis
   async function handleDeleteSelected() {
     if (!confirm(`Hapus ${selectedFiles.length} file dari ${activeBucket} secara permanen?`)) return
     try {
@@ -88,9 +88,7 @@ export default function MediaManagerPage() {
 
       if (!res.ok) throw new Error("Gagal hapus file di VPS")
 
-      // MEMAKSA NEXT.JS REFRESH CACHE
       await fetch('/api/revalidate?secret=tri_rahasia_123')
-
       alert(`Berhasil menghapus ${selectedFiles.length} file!`)
       fetchMedia()
     } catch (err: any) {
@@ -208,7 +206,8 @@ export default function MediaManagerPage() {
                   >
                     <div className="aspect-square relative bg-gray-50">
                       <Image 
-                        src={file.url} 
+                        // MENAMBAHKAN CACHE BUSTER (?t=...) BIAR GAMBAR LANGSUNG NONGOL
+                        src={`${file.url}?t=${refreshKey}`} 
                         alt={file.name} 
                         fill 
                         className={`object-cover transition-transform duration-500 group-hover:scale-105 ${isSelected ? 'opacity-70 scale-95' : ''}`} 

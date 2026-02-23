@@ -8,7 +8,7 @@ type Props = {
   params: Promise<{ slug: string }>
 }
 
-// FUNGSI UNTUK SEO (JALAN DI SERVER)
+// FUNGSI UNTUK SEO & PREVIEW WHATSAPP (SERVER-SIDE)
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   
@@ -20,11 +20,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        // Pastikan nama tabel "Product" (huruf P besar) sesuai Adminer VPS
+        // Nama tabel "Product" case-sensitive sesuai database lu
         sql: 'SELECT name, images, price_regular FROM public."Product" WHERE slug = $1 LIMIT 1', 
         params: [slug] 
       }),
-      // Revalidate 0 atau force-dynamic memastikan metadata selalu sinkron
       next: { revalidate: 0 } 
     })
 
@@ -61,6 +60,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // HALAMAN UTAMA (SERVER COMPONENT)
 export default async function Page({ params }: Props) {
-  // Langsung lempar ke Client Component (ProdukDetail.tsx) yang sudah kita benerin tadi
+  // Langsung lempar ke Client Component yang lu buat tadi
   return <ProductDetailClient params={params} />
 }
