@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, use, useCallback, useRef } from 'react'
-import Image from 'next/image'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import { 
   ChevronLeft, LayoutGrid, Loader2, 
   ShieldCheck, ShoppingBag, Info, RefreshCw, Share2,
@@ -97,12 +97,28 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
 
   useEffect(() => { getInitialData() }, [getInitialData])
 
+  // --- JURUS SHARE IPHONE/SAFARI [cite: 2026-02-24] ---
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product?.name,
+          text: `Cek sepatu ${product?.name} ini di HnM Store!`,
+          url: window.location.href,
+        })
+      } catch (err) { console.log('Share dibatalkan') }
+    } else {
+      navigator.clipboard.writeText(window.location.href)
+      alert('Link disalin ke clipboard!')
+    }
+  }
+
   // --- LOGIC WA ASLI LU ---
   const handleOrderWA = () => {
     if (!selectedSize) return alert("Pilih ukuran dulu!")
     const formattedPrice = Number(product?.price_regular || 0).toLocaleString('id-ID')
     const cleanNumber = waConfig?.phone_number.replace(/[^0-9]/g, '') || ''
-    const msg = waConfig?.template_message
+    const msg = (waConfig?.template_message || '')
       .replace(/{produk}/g, product?.name || '')
       .replace(/{harga}/g, `Rp ${formattedPrice}`)
       .replace(/{link}/g, typeof window !== 'undefined' ? window.location.href : '') + `\n\n*Pilihan Size:* ${selectedSize}`
@@ -129,12 +145,12 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
   return (
     <div className="min-h-screen bg-white text-black font-sans pb-24 md:pb-12">
       
-      {/* MOBILE HEADER */}
-      <div className="fixed top-0 left-0 w-full z-50 px-4 py-4 flex items-center justify-between md:hidden">
-        <Link href="/produk" className="p-2 bg-black/40 backdrop-blur-lg rounded-full text-white active:scale-90 shadow-lg">
+      {/* MOBILE HEADER - SHARE FUNCTION CONNECTED [cite: 2026-02-24] */}
+      <div className="fixed top-0 left-0 w-full z-50 px-4 py-4 flex items-center justify-between md:hidden print:hidden">
+        <Link href="/produk" className="p-2 bg-black/40 backdrop-blur-lg rounded-full text-white active:scale-90 transition-all shadow-lg">
           <ChevronLeft size={24} />
         </Link>
-        <button className="p-2 bg-black/40 backdrop-blur-lg rounded-full text-white active:scale-90 shadow-lg">
+        <button onClick={handleShare} className="p-2 bg-black/40 backdrop-blur-lg rounded-full text-white active:scale-90 transition-all shadow-lg">
           <Share2 size={20} />
         </button>
       </div>
@@ -188,7 +204,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
                 </>
               )}
 
-              {/* SLIDER INDICATOR DOTS (MOBILE) */}
+              {/* SLIDER INDICATOR DOTS */}
               <div className="absolute bottom-6 inset-x-0 flex justify-center gap-2 z-10 pointer-events-none">
                 {product.images?.map((_, idx) => (
                   <div 
@@ -220,7 +236,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           {/* PRODUCT INFO AREA */}
           <div className="w-full lg:w-1/2 flex flex-col p-8 md:p-0 text-black">
             <div className="mb-10">
-              <div className="inline-flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-md mb-6 border border-gray-100 text-black">
+              <div className="inline-flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-md mb-6 border border-gray-100 text-black font-bold">
                 <ShoppingBag size={12} className="text-gray-400" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{product.Brand?.name} Original</span>
               </div>
