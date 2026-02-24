@@ -159,7 +159,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
       </div>
 
       {/* DESKTOP HEADER NAV */}
-      <div className="hidden md:block w-full border-b border-gray-100 bg-white sticky top-[-1px] z-40">
+      <div className="hidden md:block w-full border-b border-gray-100 bg-white sticky top-px z-40">
         <nav className="max-w-7xl mx-auto px-10 py-6 flex items-center justify-between text-black">
           <Link href="/produk" className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-all">
             <LayoutGrid size={16} /> Katalog
@@ -303,7 +303,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
               {relatedProducts.map((rp: any) => (
                 <Link key={rp.id} href={`/produk/${rp.slug}`} className="group block relative">
                   {/* Card Image dengan Shadow Kaku [cite: 2026-02-24] */}
-                  <div className="aspect-[4/5] relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
+                  <div className="aspect-4/5 relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
                     <Image 
                       src={rp.images?.[0] ? `/uploads/${rp.images[0]}` : '/placeholder.png'} 
                       alt={rp.name} fill className="object-cover transition-all duration-700 group-hover:scale-110" 
