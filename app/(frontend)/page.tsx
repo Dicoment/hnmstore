@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react' // Tambah Suspense di sini
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, LayoutGrid, Loader2, Quote, ShieldCheck,ChevronLeft, ChevronRight , Truck, Zap, Info } from 'lucide-react'
+import { ArrowRight, LayoutGrid, Loader2, Quote, ShieldCheck, ChevronLeft, ChevronRight, Truck, Zap, Info } from 'lucide-react'
 
-export default function HomePage() {
+// --- 1. ISI TOKO LU (Fungsi Asli Lu Gue Pindah Sini, Nama Diganti Dikit) ---
+function HomeContent() {
   const [dataByBrand, setDataByBrand] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const sliderRef = useRef<HTMLDivElement>(null)
@@ -14,7 +15,6 @@ export default function HomePage() {
     async function fetchHomeData() {
       try {
         setLoading(true)
-        // QUERY SAKTI: Ambil produk aktif + Brand + Stok Size sekaligus [cite: 2026-02-24]
         const sql = `
           SELECT 
             p.id, p.name, p.slug, p.price_regular, p.images, b.name as "brandName",
@@ -30,7 +30,6 @@ export default function HomePage() {
         const res = await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql }) })
         const result = await res.json()
         
-        // Grouping data berdasarkan Brand secara dinamis [cite: 2026-02-24]
         const grouped = (result.data || []).reduce((acc: any, curr: any) => {
           const brand = curr.brandName || 'Others'
           if (!acc[brand]) acc[brand] = []
@@ -38,7 +37,6 @@ export default function HomePage() {
           return acc
         }, {})
 
-        // Transform jadi array section (Max 4 produk per brand buat homepage) [cite: 2026-02-24]
         const sectionArray = Object.keys(grouped).map(brand => ({
           brandName: brand,
           products: grouped[brand].slice(0, 4)
@@ -88,8 +86,7 @@ export default function HomePage() {
         </div>
       </section>
 
-
-  {/* 2. THE STATEMENT + PREMIUM SLIDER */}
+      {/* 2. THE STATEMENT + PREMIUM SLIDER */}
       <section className="py-32 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 mb-20">
           <div className="flex flex-col md:flex-row justify-between items-end gap-8 border-b-4 border-black pb-12">
@@ -118,7 +115,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* SWIPEABLE SLIDER: STYLE NEW ARRIVAL */}
         <div className="relative">
           <div 
             ref={sliderRef}
@@ -134,7 +130,6 @@ export default function HomePage() {
                   href={`/produk/${p.slug}`} 
                   className="min-w-70 md:min-w-95 snap-center group block relative"
                 >
-                  {/* Image with Shadow Drop */}
                   <div className="aspect-4/5 relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
                     <Image 
                       src={`/uploads/${p.images?.[0]}`} 
@@ -204,15 +199,13 @@ export default function HomePage() {
         </Link>
       </section>
 
-{/* 4. DYNAMIC BRAND SECTIONS */}
+      {/* 4. DYNAMIC BRAND SECTIONS */}
       <div className="bg-white space-y-24 md:space-y-40 py-24 md:py-32">
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="animate-spin text-black" size={32} /></div>
         ) : (
           dataByBrand.map((section, idx) => (
             <section key={idx} className="max-w-7xl mx-auto px-4 md:px-6">
-              
-              {/* HEADER SECTION PER BRAND */}
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b-4 border-black pb-12 mb-20">
                 <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 bg-yellow-400 px-3 py-1 rounded-md shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -228,12 +221,9 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              {/* PRODUCTS GRID: 2 COL MOBILE / 4 COL DESKTOP */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12 md:gap-x-8 md:gap-y-16">
                 {section.products.map((p: any) => (
                   <Link key={p.id} href={`/produk/${p.slug}`} className="group block relative">
-                    
-                    {/* Image Container with Hover Effect */}
                     <div className="aspect-4/5 relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
                       <Image 
                         src={p.images?.[0] ? `/uploads/${p.images[0]}` : '/placeholder.png'} 
@@ -242,31 +232,23 @@ export default function HomePage() {
                         className="object-cover transition-all duration-700 group-hover:scale-110"
                         unoptimized
                       />
-                      
-                      {/* BRAND OVERLAY */}
                       <div className="absolute top-3 left-3 md:top-4 md:left-4">
                         <span className="bg-black text-white text-[7px] md:text-[8px] font-bold uppercase px-2 py-1 rounded tracking-widest shadow-lg">
                           {p.brandName}
                         </span>
                       </div>
-
-                      {/* QUICK SIZE OVERLAY - Muncul pas hover (Desktop) */}
-                      
                     </div>
 
-                    {/* Info Container */}
                     <div className="mt-4 md:mt-6 space-y-2 px-1">
                       <h3 className="font-bold text-xs md:text-base uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">
                         {p.name}
                       </h3>
-                      
                       <div className="flex flex-col gap-3 border-t-2 border-zinc-50 pt-2">
                         <p className="font-bold text-black text-sm md:text-lg tracking-tighter leading-none">
                           RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
                         </p>
-                  {/* READY SIZE INFO - Muncul selalu, tapi tampilkan stok size yang ready aja */}
-                    <span className="text-xs font-medium uppercase text-zinc-700">Ready Size:</span>
-                    <div className="flex flex-wrap pt-2 gap-1">
+                        <span className="text-xs font-medium uppercase text-zinc-700">Ready Size:</span>
+                        <div className="flex flex-wrap pt-2 gap-1">
                           {p.available_sizes ? p.available_sizes.slice(0, 10).map((s: any, sIdx: number) => (
                             <span key={sIdx} className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-200 hover:border-zinc-800 transition-colors uppercase">
                               {s.size}
@@ -286,38 +268,20 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 5. TRUST BANNER */}
-      <section className="bg-zinc-950 py-32 px-6">
-        <div className="max-w-7xl mx-auto text-center space-y-16">
-          <Quote className="text-white/10 mx-auto" size={80} />
-          <h2 className="text-4xl md:text-5xl font-bold text-white uppercase tracking-tighter leading-tight max-w-4xl mx-auto">
-            "THE ONLY WAY TO PREDICT THE FUTURE IS TO CREATE IT."
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-16">
-            <FeatureItem title="100% Legit" desc="Double verification process" icon={<ShieldCheck className="mx-auto mb-4 text-zinc-500" size={24}/>} />
-            <FeatureItem title="Fast Delivery" desc="Same day dispatch service" icon={<Truck className="mx-auto mb-4 text-zinc-500" size={24}/>} />
-            <FeatureItem title="Expert Support" desc="Sneakerhead assistant 24/7" icon={<Zap className="mx-auto mb-4 text-zinc-500" size={24}/>} />
-          </div>
-        </div>
-      </section>
-
       <style jsx global>{`
-        .text-outline { -webkit-text-stroke: 1px #e4e4e7; color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         @keyframes slow-pan { 0% { transform: scale(1.1) translateX(-2%); } 100% { transform: scale(1.1) translateX(2%); } }
         .animate-slow-pan { animation: slow-pan 20s infinite alternate ease-in-out; }
-        .animate-fade-in { animation: fadeIn 2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   )
 }
 
-function FeatureItem({ title, desc, icon }: { title: string, desc: string, icon: React.ReactNode }) {
+// --- 2. BUNGKUSANNYA (EXPORT DEFAULT INI YANG DIBACA NEXTJS) [cite: 2026-02-24] ---
+export default function HomePage() {
   return (
-    <div className="space-y-2">
-      {icon}
-      <p className="text-white text-lg font-bold uppercase tracking-tighter">{title}</p>
-      <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{desc}</p>
-    </div>
+    <Suspense fallback={<div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-black" size={40} /></div>}>
+      <HomeContent />
+    </Suspense>
   )
 }
