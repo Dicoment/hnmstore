@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { 
   ChevronLeft, LayoutGrid, Loader2, 
   ShieldCheck, ShoppingBag, Info, RefreshCw, Share2,
-  ChevronRight
+  ChevronRight, Zap
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -80,10 +80,15 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           ProductSizeStock: raw.v_stocks || []
         })
 
+        // QUERY RELATED: Ambil produk terkait + Info size ready [cite: 2026-02-24]
         const relRes = await fetch('/api/vps-db', {
           method: 'POST',
           body: JSON.stringify({ 
-            sql: `SELECT p.id, p.name, p.slug, p.images, p.price_regular, b.name as "brandName" 
+            sql: `SELECT p.id, p.name, p.slug, p.images, p.price_regular, b.name as "brandName",
+                  (SELECT json_agg(json_build_object('size', s.value))
+                   FROM public."ProductSizeStock" pss 
+                   JOIN public."Size" s ON s.id = pss."sizeId" 
+                   WHERE pss."productId" = p.id AND pss.stock > 0) as "available_sizes"
                   FROM public."Product" p LEFT JOIN public."Brand" b ON p."brandId" = b.id 
                   WHERE p."brandId" = $1 AND p.id != $2 AND p.draft = false LIMIT 4`,
             params: [raw.brandId, raw.id]
@@ -97,7 +102,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
 
   useEffect(() => { getInitialData() }, [getInitialData])
 
-  // --- JURUS SHARE IPHONE/SAFARI [cite: 2026-02-24] ---
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -113,7 +117,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
     }
   }
 
-  // --- LOGIC WA ASLI LU ---
   const handleOrderWA = () => {
     if (!selectedSize) return alert("Pilih ukuran dulu!")
     const formattedPrice = Number(product?.price_regular || 0).toLocaleString('id-ID')
@@ -125,7 +128,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
     window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
-  // --- NATIVE SCROLL HANDLER ---
   const handleScroll = () => {
     if (sliderRef.current) {
       const index = Math.round(sliderRef.current.scrollLeft / sliderRef.current.offsetWidth)
@@ -143,9 +145,10 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
   if (!product) return notFound()
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans pb-24 md:pb-12">
+    /* FIX: SAFETY PADDING BIAR GAK NYUNDUL */
+    <div className="min-h-screen bg-white text-black font-sans pb-24 md:pb-12 pt-24 md:pt-32">
       
-      {/* MOBILE HEADER - SHARE FUNCTION CONNECTED [cite: 2026-02-24] */}
+      {/* MOBILE HEADER - SHARE FUNCTION CONNECTED */}
       <div className="fixed top-0 left-0 w-full z-50 px-4 py-4 flex items-center justify-between md:hidden print:hidden">
         <Link href="/produk" className="p-2 bg-black/40 backdrop-blur-lg rounded-full text-white active:scale-90 transition-all shadow-lg">
           <ChevronLeft size={24} />
@@ -156,7 +159,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
       </div>
 
       {/* DESKTOP HEADER NAV */}
-      <div className="hidden md:block w-full border-b border-gray-100 bg-white sticky top-0 z-40">
+      <div className="hidden md:block w-full border-b border-gray-100 bg-white sticky top-[-1px] z-40">
         <nav className="max-w-7xl mx-auto px-10 py-6 flex items-center justify-between text-black">
           <Link href="/produk" className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-all">
             <LayoutGrid size={16} /> Katalog
@@ -169,16 +172,16 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
         </nav>
       </div>
 
-      <div className="max-w-7xl mx-auto md:px-10 py-0 md:py-20">
+      <div className="max-w-7xl mx-auto md:px-10 py-0 md:py-10">
         <div className="flex flex-col lg:flex-row gap-0 md:gap-16 lg:gap-24">
           
           {/* GALLERY AREA: NATIVE SWIPEABLE SLIDER */}
           <div className="w-full lg:w-1/2">
-            <div className="relative aspect-square md:rounded-2xl bg-white border-b md:border border-gray-100 shadow-sm overflow-hidden">
+            <div className="relative aspect-square md:rounded-2xl bg-white border-b md:border border-gray-100 shadow-sm overflow-hidden group">
               <div 
                 ref={sliderRef}
                 onScroll={handleScroll}
-                className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar"
+                className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
                 style={{ scrollbarWidth: 'none' }}
               >
                 {product.images?.map((img, i) => (
@@ -192,40 +195,33 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
                 ))}
               </div>
 
-              {/* SLIDER NAVIGATION (DESKTOP) */}
+              {/* SLIDER NAVIGATION (DESKTOP CHEVRON) [cite: 2026-02-24] */}
               {product.images?.length > 1 && (
                 <>
-                  <button onClick={() => scrollToIndex(activeImage - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-md rounded-full text-black shadow-lg hidden md:flex active:scale-90 transition-all">
-                    <ChevronLeft size={20} />
+                  <button onClick={() => scrollToIndex(activeImage - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-md rounded-full text-black shadow-xl hidden md:flex active:scale-90 transition-all opacity-0 group-hover:opacity-100">
+                    <ChevronLeft size={24} />
                   </button>
-                  <button onClick={() => scrollToIndex(activeImage + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-md rounded-full text-black shadow-lg hidden md:flex active:scale-90 transition-all">
-                    <ChevronRight size={20} />
+                  <button onClick={() => scrollToIndex(activeImage + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-md rounded-full text-black shadow-xl hidden md:flex active:scale-90 transition-all opacity-0 group-hover:opacity-100">
+                    <ChevronRight size={24} />
                   </button>
                 </>
               )}
 
-              {/* SLIDER INDICATOR DOTS */}
+              {/* INDICATOR DOTS */}
               <div className="absolute bottom-6 inset-x-0 flex justify-center gap-2 z-10 pointer-events-none">
                 {product.images?.map((_, idx) => (
-                  <div 
-                    key={idx} 
-                    className={`h-1.5 transition-all duration-300 rounded-full ${activeImage === idx ? 'w-8 bg-black' : 'w-2 bg-black/20'}`}
-                  />
+                  <div key={idx} className={`h-1.5 transition-all duration-300 rounded-full ${activeImage === idx ? 'w-8 bg-black' : 'w-2 bg-black/20'}`} />
                 ))}
-              </div>
-              
-              <div className="absolute top-6 right-6 bg-black/60 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-widest backdrop-blur-md">
-                {activeImage + 1} / {product.images?.length}
               </div>
             </div>
 
-            {/* Thumbnails Grid */}
-            <div className="flex flex-wrap gap-3 mt-6 px-4 md:px-0">
+            {/* Thumbnails Grid - GAP RAPET [cite: 2026-02-24] */}
+            <div className="flex flex-wrap gap-2 mt-4 px-4 md:px-0">
               {product.images?.map((img, idx) => (
                 <button 
                   key={idx} 
                   onClick={() => scrollToIndex(idx)} 
-                  className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImage === idx ? 'border-black scale-95' : 'border-gray-100 opacity-60'}`}
+                  className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImage === idx ? 'border-black scale-95' : 'border-transparent opacity-60'}`}
                 >
                   <Image src={`/uploads/${img}`} alt="thumb" fill className="object-cover" unoptimized />
                 </button>
@@ -235,27 +231,28 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
 
           {/* PRODUCT INFO AREA */}
           <div className="w-full lg:w-1/2 flex flex-col p-8 md:p-0 text-black">
-            <div className="mb-10">
-              <div className="inline-flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-md mb-6 border border-gray-100 text-black font-bold">
+            <div className="mb-10 font-bold">
+              <div className="inline-flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-md mb-6 border border-gray-100">
                 <ShoppingBag size={12} className="text-gray-400" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{product.Brand?.name} Original</span>
+                <span className="text-[10px] uppercase tracking-widest text-gray-500">{product.Brand?.name} Original</span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold uppercase tracking-tighter leading-tight mb-4 text-black">{product.name}</h1>
-              <p className="text-3xl md:text-4xl font-bold tracking-tight text-black">Rp {Number(product.price_regular || 0).toLocaleString('id-ID')}</p>
+              <h1 className="text-4xl md:text-5xl uppercase tracking-tighter leading-tight mb-4">{product.name}</h1>
+              <p className="text-3xl md:text-4xl tracking-tight">Rp {Number(product.price_regular || 0).toLocaleString('id-ID')}</p>
             </div>
 
-            <div className="border-t border-gray-100 pt-10 mb-10 text-black font-bold">
+            <div className="border-t border-gray-100 pt-10 mb-10 font-bold">
               <div className="flex items-center gap-2 mb-4">
                 <Info size={18} className="text-gray-400" />
-                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Deskripsi Produk</h3>
+                <h3 className="text-xs uppercase tracking-widest text-gray-400">Deskripsi Produk</h3>
               </div>
               <div className="text-[14px] md:text-sm text-gray-600 tracking-tight leading-relaxed">
                 {product.description || 'Informasi produk tidak tersedia.'}
               </div>
             </div>
 
-            <div className="mb-12 text-black font-bold">
-              <p className="text-xs font-bold uppercase tracking-widest mb-6 text-black">Pilih Ukuran Tersedia</p>
+            {/* SIZE SELECTION */}
+            <div className="mb-12 font-bold text-black">
+              <p className="text-xs uppercase tracking-widest mb-6 text-zinc-400">Pilih Ukuran Tersedia</p>
               <div className="flex flex-wrap gap-3">
                 {product.ProductSizeStock?.map((s, i) => (
                   <button 
@@ -275,43 +272,68 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
               Beli via WhatsApp
             </button>
             
-            <div className="mt-10 flex items-center gap-8 justify-center md:justify-start text-black font-bold">
+            <div className="mt-10 flex items-center gap-8 justify-center md:justify-start font-bold">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={18} className="text-green-500" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">100% Authentic</span>
+                <span className="text-[10px] uppercase tracking-widest text-gray-400">100% Authentic</span>
               </div>
               <div className="flex items-center gap-2">
                 <RefreshCw size={18} className="text-blue-500" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Garansi Retur</span>
+                <span className="text-[10px] uppercase tracking-widest text-gray-400">Garansi Retur</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Related Products */}
+        {/* RELATED PRODUCTS - 2 COL MOBILE & SIZE READY */}
         {relatedProducts.length > 0 && (
           <div className="mt-24 md:mt-40 border-t border-gray-100 pt-20 px-4 md:px-0 text-black font-bold">
             <div className="flex items-end justify-between mb-12">
               <div className="space-y-2">
-                <h2 className="text-3xl md:text-4xl font-bold uppercase tracking-tighter text-black leading-none">Lengkapi Koleksi</h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Produk {product.Brand?.name} Terkait</p>
+                <h2 className="text-3xl md:text-4xl uppercase tracking-tighter leading-none">Lengkapi Koleksi</h2>
+                <p className="text-[10px] uppercase tracking-widest text-gray-400">Produk {product.Brand?.name} Terkait</p>
               </div>
-              <Link href="/produk" className="text-xs font-bold uppercase tracking-widest border-b-2 border-black pb-1 hover:text-gray-400 transition-colors text-black">
+              <Link href="/produk" className="text-xs uppercase tracking-widest border-b-2 border-black pb-1 hover:text-gray-400 transition-colors">
                 Lihat Semua
               </Link>
             </div>
+
+            {/* GRID: 2 COL MOBILE / 4 COL DESKTOP */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-10">
               {relatedProducts.map((rp: any) => (
-                <Link key={rp.id} href={`/produk/${rp.slug}`} className="group block text-black">
-                  <div className="aspect-square relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mb-5 shadow-sm">
+                <Link key={rp.id} href={`/produk/${rp.slug}`} className="group block relative">
+                  {/* Card Image dengan Shadow Kaku [cite: 2026-02-24] */}
+                  <div className="aspect-[4/5] relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
                     <Image 
                       src={rp.images?.[0] ? `/uploads/${rp.images[0]}` : '/placeholder.png'} 
-                      alt={rp.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" 
+                      alt={rp.name} fill className="object-cover transition-all duration-700 group-hover:scale-110" 
                       unoptimized 
                     />
+                    {/* ICON INDICATOR MOBILE */}
+                    <div className="absolute bottom-3 right-3 md:hidden">
+                      <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center text-white">
+                        <Zap size={10} className="fill-white" />
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-sm uppercase tracking-tight truncate mb-1.5 text-black">{rp.name}</h3>
-                  <p className="font-bold text-gray-400 text-[11px]">Rp {Number(rp.price_regular || 0).toLocaleString('id-ID')}</p>
+
+                  <div className="mt-4 md:mt-6 space-y-3 px-1">
+                    <h3 className="text-xs md:text-sm uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">{rp.name}</h3>
+                    <p className="text-sm md:text-lg tracking-tighter">Rp {Number(rp.price_regular || 0).toLocaleString('id-ID')}</p>
+                    
+                    {/* SIZE READY AREA: STATIK */}
+                    <div className="space-y-2 pt-2 border-t-2 border-zinc-50">
+                      <p className="text-[8px] md:text-[9px] uppercase tracking-widest text-zinc-400">Size Ready</p>
+                      <div className="flex flex-wrap gap-1">
+                        {rp.available_sizes ? rp.available_sizes.slice(0, 10).map((s: any, sIdx: number) => (
+                          <span key={sIdx} className="text-[8px] md:text-[9px] bg-white border border-zinc-200 px-1.5 py-0.5 rounded uppercase min-w-6 text-center">
+                            {s.size}
+                          </span>
+                        )) : <span className="text-[8px] text-red-400 italic">Sold Out</span>}
+                        {rp.available_sizes?.length > 10 && <span className="text-[8px] text-zinc-400">+{rp.available_sizes.length - 10}</span>}
+                      </div>
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -320,7 +342,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
       </div>
 
       {/* MOBILE STICKY BUTTON */}
-      <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 p-5 z-50 flex items-center gap-3 md:hidden text-black font-bold">
+      <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 p-5 z-50 flex items-center gap-3 md:hidden font-bold">
         <button onClick={handleOrderWA} className="flex-1 bg-black text-white py-5 rounded-xl font-bold text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 shadow-2xl">
           <ShoppingBag size={20} /> Order Whatsapp
         </button>

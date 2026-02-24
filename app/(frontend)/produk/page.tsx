@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Loader2, Filter, LayoutGrid, ChevronRight, X } from 'lucide-react'
+import { Loader2, Filter, LayoutGrid, ChevronRight, X, Zap } from 'lucide-react'
 
 // --- INTERFACES ---
 interface Brand { id: string; name: string }
@@ -88,7 +88,7 @@ function ShopContent() {
         />
         <div className="relative z-20 text-center space-y-4 px-4">
             <h1 className="text-white text-5xl md:text-8xl font-black uppercase tracking-tighter leading-none">Katalog</h1>
-            <p className="text-white/40 text-[9px] md:text-[10px] font-black uppercase tracking-[0.5em]">HnM Authentic Selection</p>
+            <p className="text-white/40 text-[12px] md:text-[10px] font-black uppercase tracking-[0.5em]">HnM Authentic Selection</p>
         </div>
       </div>
 
@@ -137,44 +137,76 @@ function ShopContent() {
           </div>
         </aside>
 
-        {/* 3. PRODUCT GRID */}
+        {/* 3. PRODUCT GRID - STYLE PREMIUM & SIZE READY */}
         <main className="flex-1">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-12">
             <div className="flex items-center gap-3">
-              <LayoutGrid size={18} className="text-zinc-400" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{filteredProducts.length} Produk</p>
+              <LayoutGrid size={18} className="text-black" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+                {filteredProducts.length} <span className="text-black">Koleksi Tersedia</span>
+              </p>
             </div>
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-40 gap-6">
-                <Loader2 className="animate-spin text-black" size={40} />
+            <div className="flex flex-col items-center justify-center py-40 gap-6 text-black font-bold">
+                <Loader2 className="animate-spin" size={40} strokeWidth={3} />
+                <p className="text-[10px] uppercase tracking-[0.5em] text-zinc-400">Filtering Inventory...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+            /* GRID: 2 COL MOBILE / 3 COL XL DESKTOP */
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-12 md:gap-x-8 md:gap-y-16">
               {filteredProducts.map((p) => (
-                <Link key={p.id} href={`/produk/${p.slug}`} className="group bg-white border-2 border-zinc-100 rounded-2xl overflow-hidden transition-all hover:border-black hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
-                  <div className="aspect-square relative bg-zinc-50">
-                    {/* FIX: Prefix /uploads/ ditambahin di sini */}
+                <Link 
+                  key={p.id} 
+                  href={`/produk/${p.slug}`} 
+                  className="group block relative"
+                >
+                  {/* Image Container dengan Shadow Kaku */}
+                  <div className="aspect-4/5 relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
                     <Image 
                       src={p.images && p.images[0] ? `/uploads/${p.images[0]}` : '/placeholder.png'} 
                       alt={p.name} 
                       fill 
-                      className="object-cover transition-transform duration-700 group-hover:scale-110" 
+                      className="object-cover transition-all duration-700 group-hover:scale-110" 
                       unoptimized 
                     />
-                    <div className="absolute top-4 left-4">
-                      <span className="bg-black text-white text-[8px] font-black px-2 py-1 rounded tracking-widest uppercase">{p.brandName || "Brand"}</span>
+                    <div className="absolute top-3 left-3 md:top-4 md:left-4">
+                      <span className="bg-black text-white text-[7px] md:text-[10px] font-bold px-2 py-1 rounded tracking-widest uppercase shadow-lg">
+                        {p.brandName || "Brand"}
+                      </span>
+                    </div>
+                    {/* ICON INDICATOR MOBILE */}
+                    <div className="absolute bottom-4 right-4 md:hidden">
+                      <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white shadow-xl">
+                        <Zap size={14} className="fill-white" />
+                      </div>
                     </div>
                   </div>
-                  <div className="p-6 space-y-4 text-black">
+
+                  {/* Info Section - SIZE READY SELALU MUNCUL */}
+                  <div className="mt-6 space-y-3 px-1 text-black font-bold">
                     <div className="space-y-1">
-                      <h2 className="text-sm font-black uppercase tracking-tight line-clamp-1">{p.name}</h2>
-                      <p className="text-lg font-black tracking-tighter italic">RP {Number(p.price_regular || 0).toLocaleString('id-ID')}</p>
+                      <h2 className="text-xs md:text-base uppercase tracking-tight line-clamp-1 group-hover:text-zinc-500 transition-colors">
+                        {p.name}
+                      </h2>
+                      <p className="text-sm md:text-lg tracking-tighter">
+                        RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between pt-4 border-t-2 border-zinc-50">
-                        <span className="text-[9px] font-black uppercase tracking-widest">Detail</span>
-                        <ChevronRight size={14} strokeWidth={3} />
+
+                    {/* SIZE AREA: Statik (Tanpa Hover) */}
+                    <div className="space-y-2 pt-3 border-t-2 border-zinc-50">
+                      <p className="text-[10px] md:text-[12px] uppercase tracking-widest text-zinc-400">Pilihan Size</p>
+                      <div className="flex flex-wrap gap-1 md:gap-1.5">
+                        {p.ProductSizeStock && p.ProductSizeStock.length > 0 ? p.ProductSizeStock.map((s: any, sIdx: number) => (
+                          <span key={sIdx} className="text-[10px] md:text-[12px] bg-white border border-zinc-200 text-zinc-800 px-1.5 py-1 rounded min-w-7 text-center hover:border-black transition-colors uppercase">
+                            {s.Size?.value}
+                          </span>
+                        )) : (
+                          <span className="text-[10px] text-red-400 italic">Cek Stok via Chat</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Link>
