@@ -5,14 +5,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Loader2, ArrowRight, LayoutGrid } from 'lucide-react'
 
+// Pisahin interface biar rapi
 interface Brand {
   id: string
   name: string
   images: string 
 }
 
-// 1. KOMPONEN KONTEN (Tempat logic useSearchParams dkk)
-function BrandsContent() {
+// INI KOMPONEN REAL-NYA [cite: 2026-02-24]
+function BrandsList() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -28,7 +29,7 @@ function BrandsContent() {
         const result = await res.json()
         setBrands(result.data || [])
       } catch (err) {
-        console.error("Gagal fetch brands:", err)
+        console.error("Fetch error:", err)
       } finally {
         setLoading(false)
       }
@@ -37,9 +38,9 @@ function BrandsContent() {
   }, [])
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white text-black font-bold">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white text-black">
       <Loader2 className="animate-spin" size={40} strokeWidth={3} />
-      <p className="text-[10px] uppercase tracking-[0.5em] text-zinc-400 mt-4">Syncing Brands...</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-zinc-400 mt-4">Syncing Brands...</p>
     </div>
   )
 
@@ -57,33 +58,24 @@ function BrandsContent() {
             </h1>
           </div>
           <p className="max-w-md text-zinc-400 text-[11px] font-bold uppercase tracking-[0.2em] leading-relaxed text-right">
-            Curated selection of the world's most iconic footwear manufacturers. 100% Authentic or money back.
+            Curated selection of iconic footwear. 100% Authentic verified drops.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {brands.map((brand) => (
-            <Link 
-              key={brand.id} 
-              href={`/produk?brand=${brand.id}`} 
-              className="group relative flex flex-col bg-zinc-50 border-2 border-zinc-100 rounded-xl overflow-hidden transition-all hover:border-black hover:shadow-[30px_30px_0px_0px_rgba(0,0,0,0.03)]"
-            >
+            <Link key={brand.id} href={`/produk?brand=${brand.id}`} className="group relative flex flex-col bg-zinc-50 border-2 border-zinc-100 rounded-xl overflow-hidden transition-all hover:border-black">
               <div className="aspect-video relative overflow-hidden flex items-center justify-center bg-white border-b-2 border-zinc-50">
                 {brand.images ? (
                   <Image src={`/uploads/${brand.images}`} alt={brand.name} fill className="object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700" unoptimized />
                 ) : (
-                  <span className="text-4xl font-bold text-zinc-200 uppercase tracking-tighter">{brand.name}</span>
+                  <span className="text-4xl font-bold text-zinc-200 uppercase">{brand.name}</span>
                 )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
               </div>
-
-              <div className="p-8 flex justify-between items-center bg-zinc-50 group-hover:bg-white transition-colors text-black font-bold">
-                <div className="space-y-1">
-                  <h2 className="text-2xl uppercase tracking-tighter">{brand.name}</h2>
-                  <p className="text-[10px] text-zinc-400 uppercase tracking-widest">Koleksi Terverifikasi</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-black text-white flex items-center justify-center -rotate-45 group-hover:rotate-0 transition-transform duration-500 shadow-xl">
-                  <ArrowRight size={20} strokeWidth={3} />
+              <div className="p-8 flex justify-between items-center bg-zinc-50 group-hover:bg-white transition-colors font-bold">
+                <h2 className="text-2xl uppercase tracking-tighter">{brand.name}</h2>
+                <div className="w-12 h-12 rounded-xl bg-black text-white flex items-center justify-center -rotate-45 group-hover:rotate-0 transition-transform shadow-xl">
+                  <ArrowRight size={20} />
                 </div>
               </div>
             </Link>
@@ -94,16 +86,11 @@ function BrandsContent() {
   )
 }
 
-// 2. EXPORT DENGAN WRAPPER SUSPENSE (INI JURUSNYA)
+// EXPORT DEFAULT WAJIB BERSIH CUMA SUSPENSE [cite: 2026-02-24]
 export default function BrandsPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-black font-bold">
-        <Loader2 className="animate-spin" size={40} />
-        <p className="mt-4 text-[10px] uppercase tracking-widest text-zinc-400">Loading Brands...</p>
-      </div>
-    }>
-      <BrandsContent />
+    <Suspense fallback={null}>
+      <BrandsList />
     </Suspense>
   )
 }
