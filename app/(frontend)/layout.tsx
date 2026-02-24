@@ -1,8 +1,10 @@
-// 1. Import dulu filenya dari folder components
+//'use client'
+
+import { Suspense } from 'react' // Import Suspense
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import FloatingWA from '@/components/FloatingWA'
-import type { Metadata } from 'next'
+import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   // 1. Template Judul: Biar otomatis ada akhiran " | HnM Store" [cite: 2026-02-24]
@@ -34,10 +36,11 @@ export default function FrontendLayout({
 }) {
   return (
     <section>
-      {/* 2. Panggil sebagai tag HTML di sini */}
-      <Navbar /> 
+      {/* WAJIB BUNGKUS NAVBAR DI SINI [cite: 2026-02-24] */}
+      <Suspense fallback={<div className="h-20 bg-black w-full" />}>
+        <Navbar />
+      </Suspense>
       
-      {/* Children ini adalah isi halaman (Home, Shop, dll) */}
       <main>{children}</main>
       <FloatingWA />
       <Footer />
