@@ -26,7 +26,7 @@ interface Product {
   slug: string
   description: string
   price_regular: number
-  price_promo: number | null
+  price_promo: number | null // Tetap pastikan ini ada
   brand_id: string
   model_id: string
   images: string[]
@@ -57,8 +57,9 @@ export default function InventoryHnMStore() {
   const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true)
+      // FIX QUERY: Pastiin p.price_promo ketarik
       const productQuery = `
-        SELECT p.*, b.name as "brandName", m.name as "modelName",
+        SELECT p.id, p.name, p.slug, p.description, p.price_regular, p.price_promo, p.images, p."brandId", p."modelId", p."createdAt", b.name as "brandName", m.name as "modelName",
         (SELECT json_agg(json_build_object('id', pss.id, 'stock', pss.stock, 'sizeId', pss."sizeId", 'Size', json_build_object('value', s.value)))
          FROM public."ProductSizeStock" pss JOIN public."Size" s ON s.id = pss."sizeId" WHERE pss."productId" = p.id) as "vps_stocks"
         FROM public."Product" p
@@ -258,7 +259,30 @@ export default function InventoryHnMStore() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-xs text-black font-bold">Rp {(p.price_regular || 0).toLocaleString()}</td>
+                    <td className="px-6 py-5 text-xs text-black font-bold">
+                      {/* TAMPILAN HARGA DI TABEL ADMIN */}
+                      <div className="flex flex-col gap-1">
+  {/* 1. Cek apakah ada nominal promo yang diinput klien */}
+  {p.price_promo && Number(p.price_promo) > 0 ? (
+    <>
+      {/* 2. Tampilkan Harga Akhir (Warna Merah untuk Menarik Perhatian) [cite: 2026-02-25] */}
+      <p className="font-bold text-red-600 text-lg tracking-tighter leading-none">
+        RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}
+      </p>
+      
+      {/* 3. Tampilkan Harga Asli dengan Efek Coret (Line-through) [cite: 2025-11-12, 2026-02-25] */}
+      <p className="text-[12px] text-zinc-400 line-through font-medium leading-none mt-1">
+        RP {Number(p.price_regular).toLocaleString('id-ID')}
+      </p>
+    </>
+  ) : (
+    /* 4. Tampilan Normal jika tidak ada promo [cite: 2026-02-25] */
+    <p className="font-bold text-black text-lg tracking-tighter leading-none">
+      RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
+    </p>
+  )}
+</div>
+                    </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex justify-end gap-2">
                         <Link href={`/produk/${p.slug}`} target="_blank" className="p-3 bg-white border border-gray-100 rounded-xl hover:bg-black hover:text-white transition-all shadow-sm text-black"><Eye size={14}/></Link>
@@ -285,7 +309,10 @@ export default function InventoryHnMStore() {
                   <div className="flex-1 min-w-0">
                     <h3 className="text-xs font-bold uppercase truncate text-black">{p.name || 'NONAME'}</h3>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{p.Brand?.name}</p>
-                    <p className="text-xs font-bold text-black mt-1">Rp {(p.price_regular || 0).toLocaleString()}</p>
+                    <div className="flex flex-col mt-1">
+                      <p className="text-xs font-bold text-black">Rp {(p.price_regular || 0).toLocaleString()}</p>
+                      {p.price_promo && p.price_promo > 0 && <p className="text-[10px] text-red-600">Promo: -{p.price_promo.toLocaleString()}</p>}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-1.5 border-t border-gray-50 pt-4">
@@ -303,6 +330,7 @@ export default function InventoryHnMStore() {
           </div>
         </div>
 
+        {/* PAGINATION ... tetap sama */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-10 text-black">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
             Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} items
@@ -325,90 +353,102 @@ export default function InventoryHnMStore() {
         </div>
       </div>
 
-      {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
-          <div className="relative w-full md:max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-hidden text-black font-bold">
-            <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black">
-              <div className="space-y-1">
-                <h2 className="text-xl lg:text-2xl font-bold uppercase tracking-tight">Editor Produk</h2>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update Data Gudang</p>
+     {/* MODAL EDITOR PRODUK */}
+{selectedProduct && (
+  <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
+    <div className="relative w-full md:max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-hidden text-black font-bold">
+      <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black">
+        <div className="space-y-1">
+          <h2 className="text-xl lg:text-2xl font-bold uppercase tracking-tight">Editor Produk</h2>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update Data Gudang</p>
+        </div>
+        <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 rounded-xl hover:bg-red-500 hover:text-white transition-all text-black"><X size={24} /></button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 lg:space-y-10 pb-32 bg-white text-black font-bold">
+        {/* 1. GALERI PRODUK */}
+        <div className="space-y-4">
+          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Galeri Produk</label>
+          <div className="grid grid-cols-3 gap-3">
+            {selectedProduct.images?.map((img, i) => (
+              <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50 group">
+                <Image src={`/uploads/${img}`} fill className="object-cover" alt="p" unoptimized />
+                <button type="button" onClick={() => setSelectedProduct({...selectedProduct, images: selectedProduct.images.filter((_, idx) => idx !== i)})} className="absolute top-1 right-1 bg-black text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl hover:bg-red-600"><X size={12}/></button>
               </div>
-              <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 rounded-xl hover:bg-red-500 hover:text-white transition-all text-black"><X size={24} /></button>
+            ))}
+            <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all cursor-pointer group">
+              <Upload size={20} className={uploading ? "animate-bounce" : "text-gray-300"} />
+              <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400">New Photo</span>
+              <input type="file" className="hidden" onChange={handleUploadFile} accept="image/*" />
+            </label>
+            <button type="button" onClick={() => setShowMediaModal(true)} className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all group text-black">
+              <ImageIcon size={20} className="text-gray-300 group-hover:text-black" />
+              <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400 group-hover:text-black">Library</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* 2. NAMA PRODUK */}
+          <div className="space-y-2 border-b border-gray-100 focus-within:border-black transition-all pb-2 text-black">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Nama Produk</label>
+            <input type="text" value={selectedProduct.name} onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})} className="w-full outline-none font-bold text-xl uppercase tracking-tighter bg-transparent text-black" />
+          </div>
+
+          {/* 3. DESKRIPSI PRODUK (YANG TADI HILANG) */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
+            <textarea 
+              value={selectedProduct.description || ''} 
+              onChange={(e) => setSelectedProduct({...selectedProduct, description: e.target.value})} 
+              className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-1 focus:ring-black text-[13px] font-bold transition-all text-black leading-relaxed"
+              placeholder="Tulis detail bahan, kualitas, dll..."
+            />
+          </div>
+          
+          {/* 4. STOK VARIAN */}
+          <div className="space-y-4">
+            <label className="text-xs font-bold uppercase tracking-widest block text-black">Stok Varian</label>
+            <div className="space-y-2">
+              {selectedProduct.ProductSizeStock?.map((s, index) => (
+                <div key={index} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-transparent hover:border-black transition-all text-black">
+                  <select value={s.sizeId} onChange={(e) => handleUpdateStockValue(index, 'sizeId', e.target.value)} className="flex-1 bg-white rounded-lg p-2.5 text-xs font-bold uppercase outline-none appearance-none cursor-pointer shadow-sm text-black border-none">
+                    {sizes.map(sz => <option key={sz.id} value={sz.id}>SZ {sz.value}</option>)}
+                  </select>
+                  <input type="number" value={s.stock} onChange={(e) => handleUpdateStockValue(index, 'stock', e.target.value)} className="w-20 bg-white rounded-lg p-2.5 text-xs font-bold text-center outline-none shadow-sm text-black border-none" />
+                  <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: selectedProduct.ProductSizeStock.filter((_, i) => i !== index)})} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: [...(selectedProduct.ProductSizeStock || []), {sizeId: sizes[0]?.id, stock: 0, Size: {value: sizes[0]?.value}}]})} className="w-full py-4 border-2 border-dashed border-gray-100 rounded-xl text-xs font-bold uppercase text-gray-400 hover:border-black hover:text-black transition-all">+ Add Size Variant</button>
             </div>
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 lg:space-y-10 pb-32 bg-white text-black font-bold">
-              <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Galeri Produk</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {selectedProduct.images?.map((img, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50 group">
-                      <Image src={`/uploads/${img}`} fill className="object-cover" alt="p" unoptimized />
-                      <button type="button" onClick={() => setSelectedProduct({...selectedProduct, images: selectedProduct.images.filter((_, idx) => idx !== i)})} className="absolute top-1 right-1 bg-black text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl hover:bg-red-600"><X size={12}/></button>
-                    </div>
-                  ))}
-                  <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all cursor-pointer group">
-                    <Upload size={20} className={uploading ? "animate-bounce" : "text-gray-300"} />
-                    <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400">New Photo</span>
-                    <input type="file" className="hidden" onChange={handleUploadFile} accept="image/*" />
-                  </label>
-                  <button type="button" onClick={() => setShowMediaModal(true)} className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all group text-black">
-                    <ImageIcon size={20} className="text-gray-300 group-hover:text-black" />
-                    <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400 group-hover:text-black">Library</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="space-y-2 border-b border-gray-100 focus-within:border-black transition-all pb-2 text-black">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Nama Produk</label>
-                  <input type="text" value={selectedProduct.name} onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})} className="w-full outline-none font-bold text-xl uppercase tracking-tighter bg-transparent text-black" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
-                  <textarea 
-                    value={selectedProduct.description || ''} 
-                    onChange={(e) => setSelectedProduct({...selectedProduct, description: e.target.value})} 
-                    className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-1 focus:ring-black text-xs font-bold transition-all text-black"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <label className="text-xs font-bold uppercase tracking-widest block text-black">Stok Varian</label>
-                  <div className="space-y-2">
-                    {selectedProduct.ProductSizeStock?.map((s, index) => (
-                      <div key={index} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-transparent hover:border-black transition-all text-black">
-                        <select value={s.sizeId} onChange={(e) => handleUpdateStockValue(index, 'sizeId', e.target.value)} className="flex-1 bg-white rounded-lg p-2.5 text-xs font-bold uppercase outline-none appearance-none cursor-pointer shadow-sm text-black border-none">
-                          {sizes.map(sz => <option key={sz.id} value={sz.id}>SZ {sz.value}</option>)}
-                        </select>
-                        <input type="number" value={s.stock} onChange={(e) => handleUpdateStockValue(index, 'stock', e.target.value)} className="w-20 bg-white rounded-lg p-2.5 text-xs font-bold text-center outline-none shadow-sm text-black border-none" />
-                        <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: selectedProduct.ProductSizeStock.filter((_, i) => i !== index)})} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: [...(selectedProduct.ProductSizeStock || []), {sizeId: sizes[0]?.id, stock: 0, Size: {value: sizes[0]?.value}}]})} className="w-full py-4 border-2 border-dashed border-gray-100 rounded-xl text-xs font-bold uppercase text-gray-400 hover:border-black hover:text-black transition-all">+ Add Size Variant</button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2 text-black">
-                    <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Normal</label>
-                    <input type="number" value={selectedProduct.price_regular} onChange={(e) => setSelectedProduct({...selectedProduct, price_regular: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-black font-bold text-lg text-black" />
-                  </div>
-                  <div className="space-y-2 text-black">
-                    <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Promo</label>
-                    <input type="number" value={selectedProduct.price_promo || ''} onChange={(e) => setSelectedProduct({...selectedProduct, price_promo: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500 font-bold text-lg text-red-600" />
-                  </div>
-                </div>
-              </div>
+          {/* 5. HARGA & PROMO */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 text-black">
+              <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Normal</label>
+              <input type="number" value={selectedProduct.price_regular} onChange={(e) => setSelectedProduct({...selectedProduct, price_regular: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-black font-bold text-lg text-black" />
             </div>
-
-            <div className="p-6 lg:p-8 bg-white border-t border-gray-100 sticky bottom-0 text-black font-bold">
-              <button type="submit" onClick={handleFullUpdate} disabled={isSaving} className="w-full py-5 bg-black  rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all text-white">
-                {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Update Item Katalog
-              </button>
+            <div className="space-y-2 text-black">
+              <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Promo (Potongan)</label>
+              <input type="number" value={selectedProduct.price_promo || 0} onChange={(e) => setSelectedProduct({...selectedProduct, price_promo: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-red-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500 font-bold text-lg text-red-600" />
+              <p className="text-[9px] text-gray-400 uppercase italic">Input nominal potongan saja</p>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
+      <div className="p-6 lg:p-8 bg-white border-t border-gray-100 sticky bottom-0 text-black font-bold">
+        <button type="submit" onClick={handleFullUpdate} disabled={isSaving} className="w-full py-5 bg-black rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all text-white">
+          {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Update Item Katalog
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* MEDIA MODAL ... tetap sama */}
       {showMediaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 text-black font-bold">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowMediaModal(false)} />

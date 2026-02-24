@@ -14,6 +14,7 @@ interface Product {
   name: string
   slug: string
   price_regular: number
+  price_promo: number // Tambahkan interface ini
   brandId: string
   modelId: string
   images: string[]
@@ -63,8 +64,9 @@ function ShopContent() {
       if (activeBrand !== 'all') whereClause += ` AND p."brandId" = '${activeBrand}'`
       if (activeModel !== 'all') whereClause += ` AND p."modelId" = '${activeModel}'`
 
+      // UPDATE QUERY: Tambahkan p.price_promo
       const productQuery = `
-        SELECT p.*, b.name as "brandName", m.name as "modelName",
+        SELECT p.id, p.name, p.slug, p.price_regular, p.price_promo, p.images, b.name as "brandName", m.name as "modelName",
           (SELECT json_agg(json_build_object('stock', pss.stock, 'Size', json_build_object('value', s.value)) ORDER BY s.value ASC)
            FROM public."ProductSizeStock" pss JOIN public."Size" s ON s.id = pss."sizeId" WHERE pss."productId" = p.id AND pss.stock > 0) as "ProductSizeStock"
         FROM public."Product" p
@@ -127,7 +129,7 @@ function ShopContent() {
           <Filter size={18} /> Filter Koleksi
         </button>
 
-        {/* 2. SIDEBAR FILTER - SEJAJAR DENGAN PRODUK */}
+        {/* 2. SIDEBAR FILTER */}
         <aside className={`fixed inset-0 z-100 bg-white p-8 overflow-y-auto transition-transform duration-500 lg:relative lg:inset-auto lg:z-0 lg:p-0 lg:w-80 lg:translate-x-0 ${showMobileFilter ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex items-center justify-between lg:hidden mb-8 border-b-2 border-zinc-100 pb-4">
              <h2 className="text-xl font-bold uppercase tracking-tighter">Filter</h2>
@@ -161,7 +163,6 @@ function ShopContent() {
 
         {/* 3. PRODUCT GRID */}
         <main className="flex-1 w-full">
-          {/* TOP BAR: RESULTS & SORTING DROPDOWN */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-12 border-b-2 border-zinc-50 pb-6">
             <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">
               Menampilkan <span className="text-black">{products.length} dari {totalItems}</span> Koleksi
@@ -201,7 +202,24 @@ function ShopContent() {
                     </div>
                     <div className="mt-6 space-y-3 px-1 font-bold text-black">
                       <h2 className="text-xs md:text-base uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">{p.name}</h2>
-                      <p className="text-sm md:text-lg tracking-tighter">RP {Number(p.price_regular || 0).toLocaleString('id-ID')}</p>
+                      
+                      {/* UPDATE LOGIKA HARGA DI KATALOG */}
+                      <div className="flex flex-col gap-0.5">
+                        {p.price_promo && Number(p.price_promo) > 0 ? (
+                          <>
+                            <p className="text-sm md:text-lg tracking-tighter text-red-600 leading-none">
+                              RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 line-through font-medium">
+                              RP {Number(p.price_regular).toLocaleString('id-ID')}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm md:text-lg tracking-tighter">
+                            RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
+                          </p>
+                        )}
+                      </div>
                       
                       <div className="space-y-2 pt-3 border-t-2 border-zinc-50">
                         <p className="text-[10px] md:text-[12px] uppercase tracking-widest text-zinc-400">Ready Size</p>

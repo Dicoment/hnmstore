@@ -54,8 +54,9 @@ export default function POSPage() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
+      // FIX QUERY: Tambahkan p.price_promo
       const sql = `
-        SELECT p.id, p.name, p.price_regular, p.images,
+        SELECT p.id, p.name, p.price_regular, p.price_promo, p.images,
         json_agg(json_build_object(
           'id', pss.id, 'stock', pss.stock, 'sizeId', pss."sizeId",
           'Size', json_build_object('value', s.value)
@@ -63,7 +64,8 @@ export default function POSPage() {
         FROM public."Product" p
         JOIN public."ProductSizeStock" pss ON p.id = pss."productId"
         JOIN public."Size" s ON s.id = pss."sizeId"
-        GROUP BY p.id ORDER BY p.name ASC
+        GROUP BY p.id, p.name, p.price_regular, p.price_promo, p.images
+        ORDER BY p.name ASC
       `
       const res = await fetch(`/api/vps-db?t=${Date.now()}`, { 
         method: 'POST', 
@@ -80,7 +82,33 @@ export default function POSPage() {
     fetchRecentTransactions()
   }, [fetchProducts, fetchRecentTransactions])
 
-  // --- LOGIC ASLI LU (TETAP SAMA) ---
+  // --- LOGIC ADD TO CART: Hitung Harga Promo otomatis [cite: 2026-02-25] ---
+  const addToCart = (product: any, ss: any) => {
+    if (ss.stock <= 0) return alert('Stok Habis!')
+    
+    // Tentukan harga: Jika ada promo (potongan), kurangi harga reguler [cite: 2026-02-25]
+    const finalPrice = product.price_promo && Number(product.price_promo) > 0 
+      ? Number(product.price_regular) - Number(product.price_promo)
+      : Number(product.price_regular);
+
+    const ex = cart.find(i => i.stockId === ss.id)
+    if (ex) {
+      if (ex.quantity >= ss.stock) return alert('Stok Mentok!')
+      setCart(cart.map(i => i.stockId === ss.id ? { ...i, quantity: i.quantity + 1 } : i))
+    } else {
+      setCart([...cart, { 
+        productId: product.id, 
+        stockId: ss.id, 
+        name: product.name, 
+        size: ss.Size.value, 
+        price: finalPrice, // Harga yang masuk ke cart sudah harga diskon [cite: 2026-02-25]
+        quantity: 1, 
+        maxStock: ss.stock 
+      }])
+    }
+  }
+
+  // --- HANDLE CHECKOUT (LOGIC ASLI TETAP SAMA) ---
   async function handleCheckout() {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -135,6 +163,7 @@ export default function POSPage() {
     } catch (err: any) { alert("Gagal Checkout: " + err.message); } finally { setIsProcessing(false); }
   }
 
+  // --- FUNGSI LAINNYA (TETAP SAMA) ---
   async function handleProcessReturn() {
     if (!selectedTx || !returnReason) return alert('Alasan wajib diisi!');
     setIsReturning(true);
@@ -187,17 +216,6 @@ export default function POSPage() {
     } catch (err: any) { alert("Gagal Retur: " + err.message); } finally { setIsReturning(false); }
   }
 
-  const addToCart = (product: any, ss: any) => {
-    if (ss.stock <= 0) return alert('Stok Habis!')
-    const ex = cart.find(i => i.stockId === ss.id)
-    if (ex) {
-      if (ex.quantity >= ss.stock) return alert('Stok Mentok!')
-      setCart(cart.map(i => i.stockId === ss.id ? { ...i, quantity: i.quantity + 1 } : i))
-    } else {
-      setCart([...cart, { productId: product.id, stockId: ss.id, name: product.name, size: ss.Size.value, price: product.price_regular, quantity: 1, maxStock: ss.stock }])
-    }
-  }
-
   const updateQty = (sid: string, d: number) => {
     setCart(cart.map(i => (i.stockId === sid && i.quantity + d > 0 && i.quantity + d <= i.maxStock) ? { ...i, quantity: i.quantity + d } : i))
   }
@@ -233,6 +251,7 @@ export default function POSPage() {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen bg-white text-black font-sans overflow-x-hidden">
       
+      {/* GRID PRODUK */}
       <div className="flex-1 flex flex-col gap-3 p-2 lg:p-10 overflow-hidden order-2 lg:order-1">
         <div className="border border-gray-100 rounded-2xl p-6 flex flex-col sm:flex-row justify-between items-center bg-white shadow-sm gap-4">
           <div className="relative w-full sm:flex-1">
@@ -250,7 +269,18 @@ export default function POSPage() {
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-bold uppercase truncate">{product.name}</h3>
-                <p className="text-xs font-bold text-gray-400 uppercase mt-1">RP {(product.price_regular || 0).toLocaleString()}</p>
+                
+                {/* DISPLAY HARGA POS: Tampilkan Harga Promo jika ada [cite: 2026-02-25] */}
+                <div className="mt-1">
+                  {product.price_promo && Number(product.price_promo) > 0 ? (
+                    <div className="flex flex-col">
+                      <p className="text-xs font-bold text-red-600">RP {(Number(product.price_regular) - Number(product.price_promo)).toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-300 line-through">RP {Number(product.price_regular).toLocaleString()}</p>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold text-gray-400 uppercase">RP {(product.price_regular || 0).toLocaleString()}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-auto">
                 {product.ProductSizeStock?.map((ss: any) => (
@@ -264,6 +294,7 @@ export default function POSPage() {
           ))}
         </div>
 
+        {/* TRANSAKSI HARI INI ... tetap sama */}
         <div className="shrink-0 h-48 border border-gray-100 rounded-2xl p-8 flex flex-col bg-white overflow-hidden shadow-sm">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><RefreshCcw size={14}/> TRANSAKSI HARI INI</p>
           <div className="flex gap-4 overflow-x-auto pb-4 text-black custom-scrollbar">
@@ -277,6 +308,7 @@ export default function POSPage() {
         </div>
       </div>
 
+      {/* PANEL CHECKOUT */}
       <div className={`fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-100 transition-transform duration-500 lg:static lg:w-100 lg:h-full lg:border-l lg:border-t-0 lg:translate-y-0 ${showMobileCart ? 'translate-y-0 h-[85vh]' : 'translate-y-full lg:translate-y-0'}`}>
         <div className="flex flex-col h-full text-black">
           <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50 lg:rounded-none rounded-t-3xl">
@@ -286,7 +318,7 @@ export default function POSPage() {
           </div>
           <div className="p-8 space-y-4 border-b border-gray-100">
             <input type="text" placeholder="NAMA PELANGGAN..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-black border-none" />
-            <input type="number" placeholder="DISKON (RP)..." value={discount || ''} onChange={(e) => setDiscount(Number(e.target.value))} className="w-full p-4 bg-gray-50 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-black border-none" />
+            <input type="number" placeholder="DISKON MANUAL (RP)..." value={discount || ''} onChange={(e) => setDiscount(Number(e.target.value))} className="w-full p-4 bg-gray-50 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-black border-none" />
           </div>
           <div className="flex-1 overflow-y-auto p-8 space-y-4 text-black custom-scrollbar">
             {cart.length === 0 ? <div className="h-full flex flex-col items-center justify-center opacity-5 py-24"><ShoppingCart size={100} /></div> : cart.map(item => (
@@ -316,6 +348,7 @@ export default function POSPage() {
         </div>
       </div>
 
+      {/* MOBILE CART TRIGGER ... tetap sama */}
       {!showMobileCart && cart.length > 0 && (
         <div className="fixed bottom-10 inset-x-10 z-30 lg:hidden animate-in slide-in-from-bottom-10">
           <button onClick={() => setShowMobileCart(true)} className="w-full bg-black text-white p-6 rounded-2xl flex items-center justify-between shadow-2xl active:scale-95 transition-all">
@@ -334,6 +367,7 @@ export default function POSPage() {
         </div>
       )}
 
+      {/* RETUR MODAL ... tetap sama */}
       {showReturnModal && selectedTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-md my-auto shadow-2xl overflow-hidden border border-gray-100 text-black">
@@ -384,6 +418,7 @@ export default function POSPage() {
         </div>
       )}
 
+      {/* RECEIPT MODAL ... tetap sama */}
       {showReceipt && lastTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-8 text-black overflow-y-auto">
           <div className="bg-white rounded-3xl p-10 w-full max-w-sm my-auto shadow-2xl text-black font-bold">

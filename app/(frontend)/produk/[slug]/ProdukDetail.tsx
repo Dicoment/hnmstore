@@ -21,6 +21,7 @@ interface ProductDetail {
   name: string;
   description: string;
   price_regular: number;
+  price_promo: number; // Tambahkan ini
   brand_id: string;
   slug: string;
   images: string[];
@@ -80,11 +81,11 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           ProductSizeStock: raw.v_stocks || []
         })
 
-        // QUERY RELATED: Ambil produk terkait + Info size ready [cite: 2026-02-24]
+        // QUERY RELATED: Tambahkan p.price_promo
         const relRes = await fetch('/api/vps-db', {
           method: 'POST',
           body: JSON.stringify({ 
-            sql: `SELECT p.id, p.name, p.slug, p.images, p.price_regular, b.name as "brandName",
+            sql: `SELECT p.id, p.name, p.slug, p.images, p.price_regular, p.price_promo, b.name as "brandName",
                   (SELECT json_agg(json_build_object('size', s.value))
                    FROM public."ProductSizeStock" pss 
                    JOIN public."Size" s ON s.id = pss."sizeId" 
@@ -102,6 +103,26 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
 
   useEffect(() => { getInitialData() }, [getInitialData])
 
+  const handleOrderWA = () => {
+    if (!selectedSize) return alert("Pilih ukuran dulu!")
+    
+    // LOGIC PESAN WA: Cek apakah ada promo atau normal
+    const isPromo = product?.price_promo && Number(product.price_promo) > 0;
+    const finalPrice = isPromo 
+      ? Number(product!.price_regular) - Number(product!.price_promo)
+      : Number(product!.price_regular);
+
+    const formattedPrice = finalPrice.toLocaleString('id-ID')
+    const cleanNumber = waConfig?.phone_number.replace(/[^0-9]/g, '') || ''
+    const msg = (waConfig?.template_message || '')
+      .replace(/{produk}/g, product?.name || '')
+      .replace(/{harga}/g, `Rp ${formattedPrice}`)
+      .replace(/{link}/g, typeof window !== 'undefined' ? window.location.href : '') + `\n\n*Pilihan Size:* ${selectedSize}`
+      
+    window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  // ... (handleShare, handleScroll, scrollToIndex tetap sama)
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -115,17 +136,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
       navigator.clipboard.writeText(window.location.href)
       alert('Link disalin ke clipboard!')
     }
-  }
-
-  const handleOrderWA = () => {
-    if (!selectedSize) return alert("Pilih ukuran dulu!")
-    const formattedPrice = Number(product?.price_regular || 0).toLocaleString('id-ID')
-    const cleanNumber = waConfig?.phone_number.replace(/[^0-9]/g, '') || ''
-    const msg = (waConfig?.template_message || '')
-      .replace(/{produk}/g, product?.name || '')
-      .replace(/{harga}/g, `Rp ${formattedPrice}`)
-      .replace(/{link}/g, typeof window !== 'undefined' ? window.location.href : '') + `\n\n*Pilihan Size:* ${selectedSize}`
-    window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   const handleScroll = () => {
@@ -145,10 +155,9 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
   if (!product) return notFound()
 
   return (
-    /* FIX: SAFETY PADDING BIAR GAK NYUNDUL */
     <div className="min-h-screen bg-white text-black font-sans pb-24 md:pb-12 pt-24 md:pt-32">
       
-      {/* MOBILE HEADER - SHARE FUNCTION CONNECTED */}
+      {/* MOBILE HEADER */}
       <div className="fixed top-0 left-0 w-full z-50 px-4 py-4 flex items-center justify-between md:hidden print:hidden">
         <Link href="/produk" className="p-2 bg-black/40 backdrop-blur-lg rounded-full text-white active:scale-90 transition-all shadow-lg">
           <ChevronLeft size={24} />
@@ -175,7 +184,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
       <div className="max-w-7xl mx-auto md:px-10 py-0 md:py-10">
         <div className="flex flex-col lg:flex-row gap-0 md:gap-16 lg:gap-24">
           
-          {/* GALLERY AREA: NATIVE SWIPEABLE SLIDER */}
+          {/* GALLERY AREA */}
           <div className="w-full lg:w-1/2">
             <div className="relative aspect-square md:rounded-2xl bg-white border-b md:border border-gray-100 shadow-sm overflow-hidden group">
               <div 
@@ -186,43 +195,19 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
               >
                 {product.images?.map((img, i) => (
                   <div key={i} className="w-full h-full shrink-0 snap-center relative">
-                    <Image 
-                      src={`/uploads/${img}`} 
-                      alt={product.name} fill className="object-cover" 
-                      unoptimized priority
-                    />
+                    <Image src={`/uploads/${img}`} alt={product.name} fill className="object-cover" unoptimized priority />
                   </div>
                 ))}
               </div>
-
-              {/* SLIDER NAVIGATION (DESKTOP CHEVRON) [cite: 2026-02-24] */}
-              {product.images?.length > 1 && (
-                <>
-                  <button onClick={() => scrollToIndex(activeImage - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-md rounded-full text-black shadow-xl hidden md:flex active:scale-90 transition-all opacity-0 group-hover:opacity-100">
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button onClick={() => scrollToIndex(activeImage + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-md rounded-full text-black shadow-xl hidden md:flex active:scale-90 transition-all opacity-0 group-hover:opacity-100">
-                    <ChevronRight size={24} />
-                  </button>
-                </>
-              )}
-
-              {/* INDICATOR DOTS */}
               <div className="absolute bottom-6 inset-x-0 flex justify-center gap-2 z-10 pointer-events-none">
                 {product.images?.map((_, idx) => (
                   <div key={idx} className={`h-1.5 transition-all duration-300 rounded-full ${activeImage === idx ? 'w-8 bg-black' : 'w-2 bg-black/20'}`} />
                 ))}
               </div>
             </div>
-
-            {/* Thumbnails Grid - GAP RAPET [cite: 2026-02-24] */}
             <div className="flex flex-wrap gap-2 mt-4 px-4 md:px-0">
               {product.images?.map((img, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => scrollToIndex(idx)} 
-                  className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImage === idx ? 'border-black scale-95' : 'border-transparent opacity-60'}`}
-                >
+                <button key={idx} onClick={() => scrollToIndex(idx)} className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImage === idx ? 'border-black scale-95' : 'border-transparent opacity-60'}`}>
                   <Image src={`/uploads/${img}`} alt="thumb" fill className="object-cover" unoptimized />
                 </button>
               ))}
@@ -230,17 +215,30 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
           </div>
 
           {/* PRODUCT INFO AREA */}
-          <div className="w-full lg:w-1/2 flex flex-col p-8 md:p-0 text-black">
-            <div className="mb-10 font-bold">
+          <div className="w-full lg:w-1/2 flex flex-col p-8 md:p-0 text-black font-bold">
+            <div className="mb-10">
               <div className="inline-flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-md mb-6 border border-gray-100">
                 <ShoppingBag size={12} className="text-gray-400" />
                 <span className="text-[10px] uppercase tracking-widest text-gray-500">{product.Brand?.name} Original</span>
               </div>
               <h1 className="text-4xl md:text-5xl uppercase tracking-tighter leading-tight mb-4">{product.name}</h1>
-              <p className="text-3xl md:text-4xl tracking-tight">Rp {Number(product.price_regular || 0).toLocaleString('id-ID')}</p>
+              
+              {/* UPDATE HARGA PROMO */}
+              {product.price_promo && Number(product.price_promo) > 0 ? (
+                <div className="flex flex-col">
+                  <p className="text-3xl md:text-4xl tracking-tight text-red-600">
+                    Rp {(Number(product.price_regular) - Number(product.price_promo)).toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-lg text-gray-400 line-through">
+                    Rp {Number(product.price_regular).toLocaleString('id-ID')}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-3xl md:text-4xl tracking-tight">Rp {Number(product.price_regular || 0).toLocaleString('id-ID')}</p>
+              )}
             </div>
 
-            <div className="border-t border-gray-100 pt-10 mb-10 font-bold">
+            <div className="border-t border-gray-100 pt-10 mb-10">
               <div className="flex items-center gap-2 mb-4">
                 <Info size={18} className="text-gray-400" />
                 <h3 className="text-xs uppercase tracking-widest text-gray-400">Deskripsi Produk</h3>
@@ -251,16 +249,11 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
             </div>
 
             {/* SIZE SELECTION */}
-            <div className="mb-12 font-bold text-black">
+            <div className="mb-12">
               <p className="text-xs uppercase tracking-widest mb-6 text-zinc-400">Pilih Ukuran Tersedia</p>
               <div className="flex flex-wrap gap-3">
                 {product.ProductSizeStock?.map((s, i) => (
-                  <button 
-                    key={i} 
-                    disabled={s.stock <= 0} 
-                    onClick={() => setSelectedSize(s.Size?.value || null)} 
-                    className={`min-w-16 h-16 px-4 rounded-xl border font-bold text-sm uppercase transition-all flex items-center justify-center ${selectedSize === s.Size?.value ? 'bg-black border-black text-white shadow-xl -translate-y-1' : s.stock > 0 ? 'bg-white border-gray-100 hover:border-black text-black' : 'bg-gray-50 text-gray-200 cursor-not-allowed line-through opacity-40'}`}
-                  >
+                  <button key={i} disabled={s.stock <= 0} onClick={() => setSelectedSize(s.Size?.value || null)} className={`min-w-16 h-16 px-4 rounded-xl border font-bold text-sm uppercase transition-all flex items-center justify-center ${selectedSize === s.Size?.value ? 'bg-black border-black text-white shadow-xl -translate-y-1' : s.stock > 0 ? 'bg-white border-gray-100 hover:border-black text-black' : 'bg-gray-50 text-gray-200 cursor-not-allowed line-through opacity-40'}`}>
                     {s.Size?.value}
                   </button>
                 ))}
@@ -271,68 +264,31 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
               <ShoppingBag size={20} className="group-hover:rotate-12 transition-transform" />
               Beli via WhatsApp
             </button>
-            
-            <div className="mt-10 flex items-center gap-8 justify-center md:justify-start font-bold">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-green-500" />
-                <span className="text-[10px] uppercase tracking-widest text-gray-400">100% Authentic</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <RefreshCw size={18} className="text-blue-500" />
-                <span className="text-[10px] uppercase tracking-widest text-gray-400">Garansi Retur</span>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* RELATED PRODUCTS - 2 COL MOBILE & SIZE READY */}
+        {/* RELATED PRODUCTS */}
         {relatedProducts.length > 0 && (
           <div className="mt-24 md:mt-40 border-t border-gray-100 pt-20 px-4 md:px-0 text-black font-bold">
-            <div className="flex items-end justify-between mb-12">
-              <div className="space-y-2">
-                <h2 className="text-3xl md:text-4xl uppercase tracking-tighter leading-none">Lengkapi Koleksi</h2>
-                <p className="text-[10px] uppercase tracking-widest text-gray-400">Produk {product.Brand?.name} Terkait</p>
-              </div>
-              <Link href="/produk" className="text-xs uppercase tracking-widest border-b-2 border-black pb-1 hover:text-gray-400 transition-colors">
-                Lihat Semua
-              </Link>
-            </div>
-
-            {/* GRID: 2 COL MOBILE / 4 COL DESKTOP */}
+            <h2 className="text-3xl md:text-4xl uppercase tracking-tighter mb-12">Lengkapi Koleksi</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-10">
               {relatedProducts.map((rp: any) => (
                 <Link key={rp.id} href={`/produk/${rp.slug}`} className="group block relative">
-                  {/* Card Image dengan Shadow Kaku [cite: 2026-02-24] */}
                   <div className="aspect-4/5 relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
-                    <Image 
-                      src={rp.images?.[0] ? `/uploads/${rp.images[0]}` : '/placeholder.png'} 
-                      alt={rp.name} fill className="object-cover transition-all duration-700 group-hover:scale-110" 
-                      unoptimized 
-                    />
-                    {/* ICON INDICATOR MOBILE */}
-                    <div className="absolute bottom-3 right-3 md:hidden">
-                      <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center text-white">
-                        <Zap size={10} className="fill-white" />
-                      </div>
-                    </div>
+                    <Image src={rp.images?.[0] ? `/uploads/${rp.images[0]}` : '/placeholder.png'} alt={rp.name} fill className="object-cover transition-all duration-700 group-hover:scale-110" unoptimized />
                   </div>
-
-                  <div className="mt-4 md:mt-6 space-y-3 px-1">
-                    <h3 className="text-xs md:text-sm uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">{rp.name}</h3>
-                    <p className="text-sm md:text-lg tracking-tighter">Rp {Number(rp.price_regular || 0).toLocaleString('id-ID')}</p>
+                  <div className="mt-4 md:mt-6 space-y-2">
+                    <h3 className="text-xs md:text-sm uppercase truncate">{rp.name}</h3>
                     
-                    {/* SIZE READY AREA: STATIK */}
-                    <div className="space-y-2 pt-2 border-t-2 border-zinc-50">
-                      <p className="text-[8px] md:text-[9px] uppercase tracking-widest text-zinc-400">Size Ready</p>
-                      <div className="flex flex-wrap gap-1">
-                        {rp.available_sizes ? rp.available_sizes.slice(0, 10).map((s: any, sIdx: number) => (
-                          <span key={sIdx} className="text-[8px] md:text-[9px] bg-white border border-zinc-200 px-1.5 py-0.5 rounded uppercase min-w-6 text-center">
-                            {s.size}
-                          </span>
-                        )) : <span className="text-[8px] text-red-400 italic">Sold Out</span>}
-                        {rp.available_sizes?.length > 10 && <span className="text-[8px] text-zinc-400">+{rp.available_sizes.length - 10}</span>}
+                    {/* HARGA RELATED */}
+                    {rp.price_promo && Number(rp.price_promo) > 0 ? (
+                      <div className="flex flex-col">
+                        <p className="text-sm md:text-lg text-red-600">Rp {(Number(rp.price_regular) - Number(rp.price_promo)).toLocaleString('id-ID')}</p>
+                        <p className="text-[10px] text-gray-400 line-through">Rp {Number(rp.price_regular).toLocaleString('id-ID')}</p>
                       </div>
-                    </div>
+                    ) : (
+                      <p className="text-sm md:text-lg">Rp {Number(rp.price_regular || 0).toLocaleString('id-ID')}</p>
+                    )}
                   </div>
                 </Link>
               ))}

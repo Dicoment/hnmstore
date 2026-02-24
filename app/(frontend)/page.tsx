@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from 'react' // Tambah Suspense di sini
+import { useEffect, useState, useRef, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, LayoutGrid, Loader2, Quote, ShieldCheck, ChevronLeft, ChevronRight, Truck, Zap, Info } from 'lucide-react'
 
-// --- 1. ISI TOKO LU (Fungsi Asli Lu Gue Pindah Sini, Nama Diganti Dikit) ---
 function HomeContent() {
   const [dataByBrand, setDataByBrand] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -17,7 +16,7 @@ function HomeContent() {
         setLoading(true)
         const sql = `
           SELECT 
-            p.id, p.name, p.slug, p.price_regular, p.images, b.name as "brandName",
+            p.id, p.name, p.slug, p.price_regular, p.price_promo, p.images, b.name as "brandName",
             (SELECT json_agg(json_build_object('size', s.value))
              FROM public."ProductSizeStock" pss 
              JOIN public."Size" s ON s.id = pss."sizeId" 
@@ -154,11 +153,24 @@ function HomeContent() {
                     <h3 className="font-bold text-base uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">
                       {p.name}
                     </h3>
-                    <div className="flex items-center justify-between gap-4 border-t-2 border-zinc-50 pt-2 text-black">
-                      <p className="font-bold text-lg tracking-tighter">
-                        RP {Number(p.price_regular).toLocaleString('id-ID')}
-                      </p>
-                      <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-500" />
+                    <div className="flex flex-col border-t-2 border-zinc-50 pt-2 text-black">
+                      <div className="flex items-center justify-between gap-4">
+                        {p.price_promo && Number(p.price_promo) > 0 ? (
+                          <div className="flex flex-col">
+                            <p className="font-bold text-lg tracking-tighter text-red-600 leading-none">
+                              RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}
+                            </p>
+                            <p className="text-[12px] text-zinc-400 line-through font-medium">
+                              RP {Number(p.price_regular).toLocaleString('id-ID')}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="font-bold text-lg tracking-tighter">
+                            RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
+                          </p>
+                        )}
+                        <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-500" />
+                      </div>
                     </div>
                     <span className="text-xs font-medium uppercase text-zinc-700">Ready Size:</span>
                     <div className="flex flex-wrap pt-2 gap-1">
@@ -170,7 +182,7 @@ function HomeContent() {
                             <span className="text-[10px] font-bold text-red-400 italic">Out of Stock</span>
                           )}
                           {p.available_sizes?.length > 10 && <span className="text-[8px] font-bold text-zinc-400">+{p.available_sizes.length - 10}</span>}
-                        </div>
+                    </div>
                   </div>
                 </Link>
               ))
@@ -243,11 +255,22 @@ function HomeContent() {
                       <h3 className="font-bold text-xs md:text-base uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">
                         {p.name}
                       </h3>
-                      <div className="flex flex-col gap-3 border-t-2 border-zinc-50 pt-2">
-                        <p className="font-bold text-black text-sm md:text-lg tracking-tighter leading-none">
-                          RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
-                        </p>
-                        <span className="text-xs font-medium uppercase text-zinc-700">Ready Size:</span>
+                      <div className="flex flex-col gap-1 border-t-2 border-zinc-50 pt-2">
+                        {p.price_promo && Number(p.price_promo) > 0 ? (
+                          <>
+                            <p className="font-bold text-red-600 text-sm md:text-lg tracking-tighter leading-none">
+                              RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 line-through font-medium">
+                              RP {Number(p.price_regular).toLocaleString('id-ID')}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="font-bold text-black text-sm md:text-lg tracking-tighter leading-none">
+                            RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
+                          </p>
+                        )}
+                        <span className="text-xs font-medium uppercase text-zinc-700 mt-2">Ready Size:</span>
                         <div className="flex flex-wrap pt-2 gap-1">
                           {p.available_sizes ? p.available_sizes.slice(0, 10).map((s: any, sIdx: number) => (
                             <span key={sIdx} className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-200 hover:border-zinc-800 transition-colors uppercase">
@@ -277,7 +300,6 @@ function HomeContent() {
   )
 }
 
-// --- 2. BUNGKUSANNYA (EXPORT DEFAULT INI YANG DIBACA NEXTJS) [cite: 2026-02-24] ---
 export default function HomePage() {
   return (
     <Suspense fallback={<div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-black" size={40} /></div>}>

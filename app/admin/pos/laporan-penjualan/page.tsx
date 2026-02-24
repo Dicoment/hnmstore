@@ -21,7 +21,6 @@ export default function LaporanPenjualanPage() {
     fetchReport()
   }, [])
 
-  // --- LOGIC ASLI LU (TIDAK DISENTUH) ---
   async function fetchReport() {
     setLoading(true)
     try {
@@ -48,7 +47,6 @@ export default function LaporanPenjualanPage() {
     }
   }
 
-  // FUNGSI PRINT ASLI LU
   const handlePrintAction = () => {
     const printContents = document.getElementById('printable-receipt')?.innerHTML;
     if (!printContents) return;
@@ -95,7 +93,6 @@ export default function LaporanPenjualanPage() {
             <h1 className="text-2xl lg:text-4xl font-bold uppercase tracking-tighter leading-none">Laporan Keuangan</h1>
             <p className="text-[12px] text-gray-400 font-bold uppercase tracking-widest mt-1">HnM Store • Unit Penjualan</p>
           </div>
-          {/* TOMBOL PRINT LAPORAN UTAMA (BALIK LAGI) */}
           <button 
             onClick={() => window.print()} 
             className="w-full lg:w-auto bg-gray-50 text-black border border-gray-100 px-6 py-4 rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-3 print:hidden"
@@ -119,7 +116,7 @@ export default function LaporanPenjualanPage() {
           </div>
           <div className="bg-gray-50 border border-gray-100 p-6 lg:p-8 rounded-2xl shadow-sm">
             <div className="flex justify-between items-center text-gray-400 font-bold text-[12px] uppercase mb-3 tracking-widest">
-              <span>Total Diskon</span><TrendingUp size={16}/>
+              <span>Total Potongan</span><TrendingUp size={16}/>
             </div>
             <p className="text-2xl lg:text-3xl font-bold text-red-500 tracking-tight">Rp {totalDiskon.toLocaleString()}</p>
           </div>
@@ -154,8 +151,8 @@ export default function LaporanPenjualanPage() {
                 <tr>
                   <th className="p-6 text-black">ID / Waktu</th>
                   <th className="p-6 text-black">Customer</th>
-                  <th className="p-6 text-black">Status</th>
-                  <th className="p-6 text-black">Total</th>
+                  <th className="p-6 text-black">Diskon</th>
+                  <th className="p-6 text-black">Total Bayar</th>
                   <th className="p-6 text-right text-black">Aksi</th>
                 </tr>
               </thead>
@@ -169,10 +166,8 @@ export default function LaporanPenjualanPage() {
                       <div className="text-[10px] text-gray-400 uppercase mt-1">{new Date(item.created_at).toLocaleDateString('id-ID')}</div>
                     </td>
                     <td className="p-6 uppercase text-black">{item.customer}</td>
-                    <td className="p-6">
-                      <span className={`px-4 py-1.5 rounded-xl text-[10px] font-bold tracking-widest border ${item.status === 'RETURNED' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                        {item.status || 'SUCCESS'}
-                      </span>
+                    <td className="p-6 text-red-500">
+                      {item.discount > 0 ? `-Rp ${Number(item.discount).toLocaleString()}` : '-'}
                     </td>
                     <td className={`p-6 font-bold text-[14px] ${item.status === 'RETURNED' ? 'text-gray-300 line-through' : 'text-black'}`}>
                       Rp {Number(item.total || 0).toLocaleString()}
@@ -195,35 +190,26 @@ export default function LaporanPenjualanPage() {
               <div key={item.id} className="p-5 flex justify-between items-center bg-white">
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] uppercase text-black truncate">{item.customer}</div>
-                  <div className="text-[10px] text-gray-400 uppercase mt-1">#{item.id?.slice(0,8)} • {new Date(item.created_at).toLocaleDateString('id-ID')}</div>
-                  <div className="mt-2">
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold tracking-widest border ${item.status === 'RETURNED' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                      {item.status || 'SUCCESS'}
-                    </span>
-                  </div>
+                  <div className="text-[10px] text-gray-400 uppercase mt-1">Total: Rp {Number(item.total).toLocaleString()}</div>
+                  {item.discount > 0 && <div className="text-[9px] text-red-500 font-bold">DISKON: -Rp {Number(item.discount).toLocaleString()}</div>}
                 </div>
-                <div className="text-right ml-4">
-                  <div className={`text-[12px] font-bold ${item.status === 'RETURNED' ? 'text-gray-300 line-through' : 'text-black'}`}>
-                    Rp {Number(item.total || 0).toLocaleString()}
-                  </div>
-                  <button onClick={() => setSelectedTransaction(item)} className="text-black bg-gray-50 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase mt-2 border border-gray-100 transition-all">Detail</button>
-                </div>
+                <button onClick={() => setSelectedTransaction(item)} className="text-black bg-gray-50 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-gray-100">Detail</button>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* MODAL & RECEIPT PRINT BALIK LAGI */}
+      {/* DETAIL MODAL */}
       {selectedTransaction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh] text-black">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 text-black">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-8 border-b border-gray-50 pb-4">
-              <h2 className="text-[12px] font-bold uppercase tracking-widest text-black">Detail Pesanan</h2>
-              <button onClick={() => setSelectedTransaction(null)} className="p-2 bg-gray-50 rounded-xl text-black transition-all"><X size={20}/></button>
+              <h2 className="text-[12px] font-bold uppercase tracking-widest">Detail Pesanan</h2>
+              <button onClick={() => setSelectedTransaction(null)} className="p-2 bg-gray-50 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20}/></button>
             </div>
 
-            <div id="printable-receipt" className="bg-gray-50 p-6 font-mono text-black border border-gray-200 rounded-2xl leading-tight text-[12px] uppercase">
+            <div id="printable-receipt" className="bg-gray-50 p-6 font-mono border border-gray-200 rounded-2xl leading-tight text-[12px] uppercase">
               <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-5">
                 <div className="text-xl font-bold">HnM Store</div>
                 <div className="text-[10px] opacity-50 mt-1">#{selectedTransaction.id?.slice(0,10)}</div>
@@ -231,7 +217,6 @@ export default function LaporanPenjualanPage() {
               <div className="space-y-1.5 mb-5 font-bold">
                 <div className="flex justify-between"><span>Pelanggan:</span><span>{selectedTransaction.customer}</span></div>
                 <div className="flex justify-between"><span>Tanggal:</span><span>{new Date(selectedTransaction.created_at).toLocaleDateString('id-ID')}</span></div>
-                <div className="flex justify-between"><span>Status:</span><span className={selectedTransaction.status === 'RETURNED' ? 'text-red-600' : 'text-green-600'}>{selectedTransaction.status || 'SUCCESS'}</span></div>
               </div>
               <div className="border-b border-dashed border-gray-300 pb-5 mb-5 space-y-3">
                 {(() => {
@@ -247,12 +232,12 @@ export default function LaporanPenjualanPage() {
               </div>
               <div className="space-y-1.5 font-bold">
                 <div className="flex justify-between opacity-50"><span>Subtotal:</span><span>Rp {Number(selectedTransaction.subtotal || 0).toLocaleString()}</span></div>
-                {Number(selectedTransaction.discount) > 0 && <div className="flex justify-between text-red-600"><span>Diskon:</span><span>-Rp {Number(selectedTransaction.discount).toLocaleString()}</span></div>}
+                {Number(selectedTransaction.discount) > 0 && <div className="flex justify-between text-red-600"><span>Potongan:</span><span>-Rp {Number(selectedTransaction.discount).toLocaleString()}</span></div>}
                 <div className="flex justify-between text-[14px] pt-3 border-t border-black mt-3"><span>TOTAL:</span><span>Rp {Number(selectedTransaction.total || 0).toLocaleString()}</span></div>
               </div>
             </div>
 
-            <button onClick={handlePrintAction} className="w-full bg-black text-white mt-8 py-5 rounded-2xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all">
+            <button onClick={handlePrintAction} className="w-full bg-black text-white mt-8 py-5 rounded-2xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all">
               <Printer size={18}/> CETAK ULANG STRUK
             </button>
           </div>
