@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { 
   Plus, Search, Edit3, Trash2, Eye, Loader2, X, Save, 
   Square, CheckCircle2, ImageIcon, RefreshCw, Upload,
-  ChevronLeft, ChevronRight, CheckSquare
+  ChevronLeft, ChevronRight, CheckSquare, Zap
 } from 'lucide-react'
 
 // --- DEFINISI INTERFACE ---
@@ -26,7 +26,7 @@ interface Product {
   slug: string
   description: string
   price_regular: number
-  price_promo: number | null // Tetap pastikan ini ada
+  price_promo: number | null
   brand_id: string
   model_id: string
   images: string[]
@@ -51,13 +51,16 @@ export default function InventoryHnMStore() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
   const [uploading, setUploading] = useState(false)
 
+  // --- STATE BARU: MODAL BULK EDIT ---
+  const [showBulkModal, setShowBulkModal] = useState(false)
+  const [bulkData, setBulkData] = useState({ price_regular: '', price_promo: '' })
+
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
   const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true)
-      // FIX QUERY: Pastiin p.price_promo ketarik
       const productQuery = `
         SELECT p.id, p.name, p.slug, p.description, p.price_regular, p.price_promo, p.images, p."brandId", p."modelId", p."createdAt", b.name as "brandName", m.name as "modelName",
         (SELECT json_agg(json_build_object('id', pss.id, 'stock', pss.stock, 'sizeId', pss."sizeId", 'Size', json_build_object('value', s.value)))
@@ -87,6 +90,31 @@ export default function InventoryHnMStore() {
   }, [])
 
   useEffect(() => { fetchInitialData() }, [fetchInitialData])
+
+  // --- FUNGSI BARU: LOGIK BULK UPDATE HARGA ---
+  async function handleBulkUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bulkData.price_regular && !bulkData.price_promo) return alert("Isi minimal satu kolom!");
+    setIsSaving(true);
+    try {
+      let setClause = [];
+      let params = [selectedIds];
+      if (bulkData.price_regular) { setClause.push(`price_regular = $${params.length + 1}`); params.push(bulkData.price_regular as any); }
+      if (bulkData.price_promo) { setClause.push(`price_promo = $${params.length + 1}`); params.push(bulkData.price_promo as any); }
+
+      await fetch('/api/vps-db', {
+        method: 'POST',
+        body: JSON.stringify({
+          sql: `UPDATE public."Product" SET ${setClause.join(', ')} WHERE id = ANY($1::uuid[])`,
+          params: params
+        })
+      });
+
+      alert(`Berhasil update ${selectedIds.length} produk!`);
+      setShowBulkModal(false); setSelectedIds([]); setBulkData({ price_regular: '', price_promo: '' });
+      fetchInitialData();
+    } catch (err) { alert("Gagal update massal"); } finally { setIsSaving(false); }
+  }
 
   const handleUpdateStockValue = (index: number, field: string, value: string | number) => {
     if (!selectedProduct) return
@@ -192,9 +220,15 @@ export default function InventoryHnMStore() {
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           {selectedIds.length > 0 && (
-            <button onClick={handleBulkDelete} disabled={isDeletingBulk} className="flex-1 md:flex-none bg-red-600 text-white px-5 py-3 lg:py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 uppercase tracking-widest active:scale-95 transition-all shadow-lg">
-              {isDeletingBulk ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />} Hapus ({selectedIds.length})
-            </button>
+            <div className="flex gap-2 w-full md:w-auto">
+              {/* TOMBOL BARU: BULK EDIT HARGA */}
+              <button onClick={() => setShowBulkModal(true)} className="flex-1 md:flex-none bg-yellow-400 text-black px-5 py-3 lg:py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 uppercase tracking-widest active:scale-95 transition-all shadow-lg hover:bg-yellow-500">
+                <Zap size={14} fill="black" /> Bulk Harga ({selectedIds.length})
+              </button>
+              <button onClick={handleBulkDelete} disabled={isDeletingBulk} className="flex-1 md:flex-none bg-red-600 text-white px-5 py-3 lg:py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 uppercase tracking-widest active:scale-95 shadow-lg">
+                {isDeletingBulk ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />} Hapus
+              </button>
+            </div>
           )}
           <Link href="/admin/produk/tambah" className="flex-1 md:flex-none bg-black text-white px-6 py-3 lg:py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 uppercase tracking-widest active:scale-95 transition-all">
             <Plus size={16} /> Tambah Item
@@ -260,28 +294,17 @@ export default function InventoryHnMStore() {
                       </div>
                     </td>
                     <td className="px-6 py-5 text-xs text-black font-bold">
-                      {/* TAMPILAN HARGA DI TABEL ADMIN */}
+                      {/* HARGA CORET DI TABEL ADMIN */}
                       <div className="flex flex-col gap-1">
-  {/* 1. Cek apakah ada nominal promo yang diinput klien */}
-  {p.price_promo && Number(p.price_promo) > 0 ? (
-    <>
-      {/* 2. Tampilkan Harga Akhir (Warna Merah untuk Menarik Perhatian) [cite: 2026-02-25] */}
-      <p className="font-bold text-red-600 text-lg tracking-tighter leading-none">
-        RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}
-      </p>
-      
-      {/* 3. Tampilkan Harga Asli dengan Efek Coret (Line-through) [cite: 2025-11-12, 2026-02-25] */}
-      <p className="text-[12px] text-zinc-400 line-through font-medium leading-none mt-1">
-        RP {Number(p.price_regular).toLocaleString('id-ID')}
-      </p>
-    </>
-  ) : (
-    /* 4. Tampilan Normal jika tidak ada promo [cite: 2026-02-25] */
-    <p className="font-bold text-black text-lg tracking-tighter leading-none">
-      RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
-    </p>
-  )}
-</div>
+                        {p.price_promo && Number(p.price_promo) > 0 ? (
+                          <>
+                            <p className="text-red-600 font-bold">RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}</p>
+                            <p className="text-zinc-400 line-through text-[10px]">RP {Number(p.price_regular).toLocaleString('id-ID')}</p>
+                          </>
+                        ) : (
+                          <p className="text-black font-bold">RP {Number(p.price_regular || 0).toLocaleString('id-ID')}</p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex justify-end gap-2">
@@ -309,10 +332,7 @@ export default function InventoryHnMStore() {
                   <div className="flex-1 min-w-0">
                     <h3 className="text-xs font-bold uppercase truncate text-black">{p.name || 'NONAME'}</h3>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{p.Brand?.name}</p>
-                    <div className="flex flex-col mt-1">
-                      <p className="text-xs font-bold text-black">Rp {(p.price_regular || 0).toLocaleString()}</p>
-                      {p.price_promo && p.price_promo > 0 && <p className="text-[10px] text-red-600">Promo: -{p.price_promo.toLocaleString()}</p>}
-                    </div>
+                    <p className="text-xs font-bold text-black mt-1">Rp {(p.price_regular || 0).toLocaleString()}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-1.5 border-t border-gray-50 pt-4">
@@ -330,7 +350,6 @@ export default function InventoryHnMStore() {
           </div>
         </div>
 
-        {/* PAGINATION ... tetap sama */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-10 text-black">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
             Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} items
@@ -353,102 +372,124 @@ export default function InventoryHnMStore() {
         </div>
       </div>
 
-     {/* MODAL EDITOR PRODUK */}
-{selectedProduct && (
-  <div className="fixed inset-0 z-50 flex justify-end">
-    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
-    <div className="relative w-full md:max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-hidden text-black font-bold">
-      <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black">
-        <div className="space-y-1">
-          <h2 className="text-xl lg:text-2xl font-bold uppercase tracking-tight">Editor Produk</h2>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update Data Gudang</p>
-        </div>
-        <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 rounded-xl hover:bg-red-500 hover:text-white transition-all text-black"><X size={24} /></button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 lg:space-y-10 pb-32 bg-white text-black font-bold">
-        {/* 1. GALERI PRODUK */}
-        <div className="space-y-4">
-          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Galeri Produk</label>
-          <div className="grid grid-cols-3 gap-3">
-            {selectedProduct.images?.map((img, i) => (
-              <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50 group">
-                <Image src={`/uploads/${img}`} fill className="object-cover" alt="p" unoptimized />
-                <button type="button" onClick={() => setSelectedProduct({...selectedProduct, images: selectedProduct.images.filter((_, idx) => idx !== i)})} className="absolute top-1 right-1 bg-black text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl hover:bg-red-600"><X size={12}/></button>
+      {/* --- MODAL BULK EDIT HARGA --- */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowBulkModal(false)} />
+          <form onSubmit={handleBulkUpdate} className="relative bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col font-bold">
+            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-yellow-400 text-black">
+              <h2 className="text-xl font-black uppercase tracking-tight leading-none"><Zap size={24} className="inline mr-2 fill-black"/> Bulk Edit Harga</h2>
+              <button type="button" onClick={() => setShowBulkModal(false)} className="p-2 bg-black/10 rounded-xl hover:bg-black/20"><X size={20}/></button>
+            </div>
+            <div className="p-8 space-y-6">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest">Update massal untuk {selectedIds.length} produk. Kosongkan kolom yang tidak ingin diubah.</p>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase text-zinc-400 tracking-widest">Harga Normal Baru</label>
+                <input type="number" value={bulkData.price_regular} onChange={(e) => setBulkData({...bulkData, price_regular: e.target.value})} className="w-full p-5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-black text-black" placeholder="Contoh: 280000" />
               </div>
-            ))}
-            <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all cursor-pointer group">
-              <Upload size={20} className={uploading ? "animate-bounce" : "text-gray-300"} />
-              <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400">New Photo</span>
-              <input type="file" className="hidden" onChange={handleUploadFile} accept="image/*" />
-            </label>
-            <button type="button" onClick={() => setShowMediaModal(true)} className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all group text-black">
-              <ImageIcon size={20} className="text-gray-300 group-hover:text-black" />
-              <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400 group-hover:text-black">Library</span>
-            </button>
-          </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase text-red-600 tracking-widest">Potongan Promo Baru</label>
+                <input type="number" value={bulkData.price_promo} onChange={(e) => setBulkData({...bulkData, price_promo: e.target.value})} className="w-full p-5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-red-500 text-red-600" placeholder="Contoh: 20000" />
+              </div>
+              <button type="submit" disabled={isSaving} className="w-full py-6 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all">
+                {isSaving ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />} Update {selectedIds.length} Produk
+              </button>
+            </div>
+          </form>
         </div>
+      )}
 
-        <div className="space-y-6">
-          {/* 2. NAMA PRODUK */}
-          <div className="space-y-2 border-b border-gray-100 focus-within:border-black transition-all pb-2 text-black">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Nama Produk</label>
-            <input type="text" value={selectedProduct.name} onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})} className="w-full outline-none font-bold text-xl uppercase tracking-tighter bg-transparent text-black" />
-          </div>
+      {/* --- MODAL EDITOR SATUAN (DESKRIPSI TETAP ADA) --- */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
+          <div className="relative w-full md:max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-hidden text-black font-bold">
+            <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black">
+              <div className="space-y-1">
+                <h2 className="text-xl lg:text-2xl font-bold uppercase tracking-tight">Editor Produk</h2>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update Data Gudang</p>
+              </div>
+              <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 rounded-xl hover:bg-red-500 hover:text-white transition-all text-black"><X size={24} /></button>
+            </div>
 
-          {/* 3. DESKRIPSI PRODUK (YANG TADI HILANG) */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
-            <textarea 
-              value={selectedProduct.description || ''} 
-              onChange={(e) => setSelectedProduct({...selectedProduct, description: e.target.value})} 
-              className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-1 focus:ring-black text-[13px] font-bold transition-all text-black leading-relaxed"
-              placeholder="Tulis detail bahan, kualitas, dll..."
-            />
-          </div>
-          
-          {/* 4. STOK VARIAN */}
-          <div className="space-y-4">
-            <label className="text-xs font-bold uppercase tracking-widest block text-black">Stok Varian</label>
-            <div className="space-y-2">
-              {selectedProduct.ProductSizeStock?.map((s, index) => (
-                <div key={index} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-transparent hover:border-black transition-all text-black">
-                  <select value={s.sizeId} onChange={(e) => handleUpdateStockValue(index, 'sizeId', e.target.value)} className="flex-1 bg-white rounded-lg p-2.5 text-xs font-bold uppercase outline-none appearance-none cursor-pointer shadow-sm text-black border-none">
-                    {sizes.map(sz => <option key={sz.id} value={sz.id}>SZ {sz.value}</option>)}
-                  </select>
-                  <input type="number" value={s.stock} onChange={(e) => handleUpdateStockValue(index, 'stock', e.target.value)} className="w-20 bg-white rounded-lg p-2.5 text-xs font-bold text-center outline-none shadow-sm text-black border-none" />
-                  <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: selectedProduct.ProductSizeStock.filter((_, i) => i !== index)})} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+            <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 lg:space-y-10 pb-32 bg-white text-black font-bold">
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Galeri Produk</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {selectedProduct.images?.map((img, i) => (
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50 group">
+                      <Image src={`/uploads/${img}`} fill className="object-cover" alt="p" unoptimized />
+                      <button type="button" onClick={() => setSelectedProduct({...selectedProduct, images: selectedProduct.images.filter((_, idx) => idx !== i)})} className="absolute top-1 right-1 bg-black text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl hover:bg-red-600"><X size={12}/></button>
+                    </div>
+                  ))}
+                  <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all cursor-pointer group">
+                    <Upload size={20} className={uploading ? "animate-bounce" : "text-gray-300"} />
+                    <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400">New Photo</span>
+                    <input type="file" className="hidden" onChange={handleUploadFile} accept="image/*" />
+                  </label>
+                  <button type="button" onClick={() => setShowMediaModal(true)} className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-black transition-all group text-black">
+                    <ImageIcon size={20} className="text-gray-300 group-hover:text-black" />
+                    <span className="text-[10px] font-bold mt-1 uppercase tracking-widest text-gray-400 group-hover:text-black">Library</span>
+                  </button>
                 </div>
-              ))}
-              <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: [...(selectedProduct.ProductSizeStock || []), {sizeId: sizes[0]?.id, stock: 0, Size: {value: sizes[0]?.value}}]})} className="w-full py-4 border-2 border-dashed border-gray-100 rounded-xl text-xs font-bold uppercase text-gray-400 hover:border-black hover:text-black transition-all">+ Add Size Variant</button>
-            </div>
-          </div>
+              </div>
 
-          {/* 5. HARGA & PROMO */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 text-black">
-              <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Normal</label>
-              <input type="number" value={selectedProduct.price_regular} onChange={(e) => setSelectedProduct({...selectedProduct, price_regular: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-black font-bold text-lg text-black" />
+              <div className="space-y-6">
+                <div className="space-y-2 border-b border-gray-100 focus-within:border-black transition-all pb-2 text-black">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Nama Produk</label>
+                  <input type="text" value={selectedProduct.name} onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})} className="w-full outline-none font-bold text-xl uppercase tracking-tighter bg-transparent text-black" />
+                </div>
+                
+                {/* DESKRIPSI PRODUK (TETAP ADA) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
+                  <textarea 
+                    value={selectedProduct.description || ''} 
+                    onChange={(e) => setSelectedProduct({...selectedProduct, description: e.target.value})} 
+                    className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-1 focus:ring-black text-[13px] font-bold transition-all text-black leading-relaxed"
+                    placeholder="Tulis detail bahan, kualitas, dll..."
+                  />
+                </div>
+                
+                <div className="space-y-4">
+                  <label className="text-xs font-bold uppercase tracking-widest block text-black">Stok Varian</label>
+                  <div className="space-y-2">
+                    {selectedProduct.ProductSizeStock?.map((s, index) => (
+                      <div key={index} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-transparent hover:border-black transition-all text-black">
+                        <select value={s.sizeId} onChange={(e) => handleUpdateStockValue(index, 'sizeId', e.target.value)} className="flex-1 bg-white rounded-lg p-2.5 text-xs font-bold uppercase outline-none appearance-none cursor-pointer shadow-sm text-black border-none">
+                          {sizes.map(sz => <option key={sz.id} value={sz.id}>SZ {sz.value}</option>)}
+                        </select>
+                        <input type="number" value={s.stock} onChange={(e) => handleUpdateStockValue(index, 'stock', e.target.value)} className="w-20 bg-white rounded-lg p-2.5 text-xs font-bold text-center outline-none shadow-sm text-black border-none" />
+                        <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: selectedProduct.ProductSizeStock.filter((_, i) => i !== index)})} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: [...(selectedProduct.ProductSizeStock || []), {sizeId: sizes[0]?.id, stock: 0, Size: {value: sizes[0]?.value}}]})} className="w-full py-4 border-2 border-dashed border-gray-100 rounded-xl text-xs font-bold uppercase text-gray-400 hover:border-black hover:text-black transition-all">+ Add Size Variant</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 text-black">
+                    <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Normal</label>
+                    <input type="number" value={selectedProduct.price_regular} onChange={(e) => setSelectedProduct({...selectedProduct, price_regular: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-black font-bold text-lg text-black" />
+                  </div>
+                  <div className="space-y-2 text-black">
+                    <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Promo (Potongan)</label>
+                    <input type="number" value={selectedProduct.price_promo || 0} onChange={(e) => setSelectedProduct({...selectedProduct, price_promo: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-red-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500 font-bold text-lg text-red-600" />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2 text-black">
-              <label className="text-xs font-bold uppercase text-gray-400 tracking-widest block">Harga Promo (Potongan)</label>
-              <input type="number" value={selectedProduct.price_promo || 0} onChange={(e) => setSelectedProduct({...selectedProduct, price_promo: parseInt(e.target.value)})} className="w-full bg-gray-50 border border-red-100 p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500 font-bold text-lg text-red-600" />
-              <p className="text-[9px] text-gray-400 uppercase italic">Input nominal potongan saja</p>
+
+            <div className="p-6 lg:p-8 bg-white border-t border-gray-100 sticky bottom-0 text-black font-bold">
+              <button type="submit" onClick={handleFullUpdate} disabled={isSaving} className="w-full py-5 bg-black rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all text-white">
+                {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Update Item Katalog
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="p-6 lg:p-8 bg-white border-t border-gray-100 sticky bottom-0 text-black font-bold">
-        <button type="submit" onClick={handleFullUpdate} disabled={isSaving} className="w-full py-5 bg-black rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all text-white">
-          {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Update Item Katalog
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-      {/* MEDIA MODAL ... tetap sama */}
+      {/* --- MEDIA MODAL (TETAP ADA) --- */}
       {showMediaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 text-black font-bold">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowMediaModal(false)} />
