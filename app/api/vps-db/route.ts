@@ -6,7 +6,7 @@ const pool = new Pool({
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  ssl: false // Paksa jadi false di sini juga
+  ssl: false 
 });
 
 export async function POST(req: NextRequest) {

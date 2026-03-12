@@ -12,7 +12,6 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   
-  // GUNAKAN IP VPS LANGSUNG BIAR GAK UNDEFINED DI SERVER-SIDE
   const VPS_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://103.197.189.71:3000'
 
   try {

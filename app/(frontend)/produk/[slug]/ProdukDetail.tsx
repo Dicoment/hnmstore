@@ -238,15 +238,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
               )}
             </div>
 
-            <div className="border-t border-gray-100 pt-10 mb-10">
-              <div className="flex items-center gap-2 mb-4">
-                <Info size={18} className="text-gray-400" />
-                <h3 className="text-xs uppercase tracking-widest text-gray-400">Deskripsi Produk</h3>
-              </div>
-              <div className="text-[14px] md:text-sm text-gray-600 tracking-tight leading-relaxed">
-                {product.description || 'Informasi produk tidak tersedia.'}
-              </div>
-            </div>
 
             {/* SIZE SELECTION */}
             <div className="mb-12">
@@ -259,6 +250,17 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
                 ))}
               </div>
             </div>
+
+            <div className="border-t border-gray-100 pt-10 mb-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Info size={18} className="text-gray-400" />
+                <h3 className="text-xs uppercase tracking-widest text-gray-400">Deskripsi Produk</h3>
+              </div>
+              <div className="text-[14px] md:text-sm text-gray-600 tracking-tight leading-relaxed">
+                {product.description || 'Informasi produk tidak tersedia.'}
+              </div>
+            </div>
+
 
             <button onClick={handleOrderWA} className="hidden md:flex w-full py-6 bg-black text-white rounded-xl font-bold text-xs uppercase tracking-[0.2em] items-center justify-center gap-4 hover:bg-zinc-800 transition-all shadow-xl active:scale-95 group">
               <ShoppingBag size={20} className="group-hover:rotate-12 transition-transform" />

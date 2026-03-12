@@ -153,9 +153,46 @@ const handleLogout = async () => {
           <SidebarItem href="/admin" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin'} />
 
           <SidebarLabel label="Transaksi" collapsed={collapsed} mobileOpen={mobileOpen} />
-          <SidebarItem href="/admin/pos" icon={<ShoppingCart size={18} />} label="POS (Kasir)" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos'} />
-          <SidebarItem href="/admin/pos/laporan-penjualan" icon={<FileBarChart size={18} />} label="Laporan Penjualan" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos/laporan-penjualan'} />
-          <SidebarItem href="/admin/pos/laporan-shift" icon={<RefreshCcw size={18} />} label="Laporan Shift" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos/laporan-shift'} />
+<SidebarItem 
+  href="/admin/pos" 
+  icon={<ShoppingCart size={18} />} 
+  label="POS (Kasir)" 
+  collapsed={collapsed} 
+  mobileOpen={mobileOpen} 
+  active={pathname === '/admin/pos'} 
+/>
+<SidebarItem 
+  href="/admin/pos/riwayat" 
+  icon={<History size={18} />} 
+  label="Riwayat Transaksi" 
+  collapsed={collapsed} 
+  mobileOpen={mobileOpen} 
+  active={pathname === '/admin/pos/riwayat'} 
+/>
+<SidebarItem 
+  href="/admin/pos/hutang" 
+  icon={<Users size={18} />} 
+  label="Hutang Seller" 
+  collapsed={collapsed} 
+  mobileOpen={mobileOpen} 
+  active={pathname === '/admin/pos/hutang'} 
+/>
+<SidebarItem 
+  href="/admin/pos/laporan-penjualan" 
+  icon={<FileBarChart size={18} />} 
+  label="Laporan Penjualan" 
+  collapsed={collapsed} 
+  mobileOpen={mobileOpen} 
+  active={pathname === '/admin/pos/laporan-penjualan'} 
+/>
+<SidebarItem 
+  href="/admin/pos/laporan-shift" 
+  icon={<RefreshCcw size={18} />} 
+  label="Laporan Shift" 
+  collapsed={collapsed} 
+  mobileOpen={mobileOpen} 
+  active={pathname === '/admin/pos/laporan-shift'} 
+/>
 
           <SidebarLabel label="Katalog Produk" collapsed={collapsed} mobileOpen={mobileOpen} />
           <SidebarItem href="/admin/produk" icon={<Package size={18} />} label="Semua Produk" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/produk'} />

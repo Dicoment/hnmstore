@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { 
   ArrowLeft, Printer, 
   Calendar, Banknote, ShoppingBag, Loader2,
-  AlertCircle, User, RefreshCw
+  AlertCircle, User, RefreshCw, AlertTriangle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -22,11 +22,12 @@ export default function LaporanShiftPage() {
       const userEmail = localStorage.getItem('user_email')
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
 
+      // Tambahkan filter status pembayaran agar bisa dipisah antara Kas dan Piutang
       const sql = `
         SELECT 
           (SELECT full_name FROM public."Profiles" WHERE email = $1 LIMIT 1) as admin_name,
           (SELECT json_agg(t.*) FROM public."Transactions" t 
-            WHERE t.status = 'SUCCESS' AND t.created_at >= $2) as sales,
+            WHERE t.status = 'SUCCESS' AND t.created_at >= $2) as all_sales,
           (SELECT json_agg(t.*) FROM public."Transactions" t 
             WHERE t.status = 'RETURNED' AND t.created_at >= $2) as returned
       `
@@ -36,16 +37,40 @@ export default function LaporanShiftPage() {
         body: JSON.stringify({ sql, params: [userEmail || '', startOfDay.toISOString()] })
       })
       const result = await res.json()
+      
       if (result.data && result.data[0]) {
         const dbResult = result.data[0]
         setAdminName(dbResult.admin_name || 'HnM Store Owner')
-        const salesData = dbResult.sales || []
+        
+        const salesData = dbResult.all_sales || []
         const returnData = dbResult.returned || []
-        const totalGross = salesData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
-        const totalReturnAmount = returnData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
 
-        // LOGIC ASLI LU
-        setReport({ totalGross, totalReturnAmount, netSales: totalGross, orderCount: salesData.length, returnCount: returnData.length })
+        // --- LOGIC PERHITUNGAN SHIFT ---
+        
+// 1. Total Penjualan Lunas yang TIDAK diretur (Duit yang beneran stay di laci)
+const totalCashSales = salesData
+  .filter((t: any) => t.payment_status === 'LUNAS' && t.status !== 'RETURNED')
+  .reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
+
+// 2. Total Piutang yang TIDAK diretur
+const totalPiutangShift = salesData
+  .filter((t: any) => t.payment_status === 'HUTANG' && t.status !== 'RETURNED')
+  .reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
+
+// 3. Total Retur (Sekadar info jumlah barang yang balik, nilainya tidak memotong kas lagi)
+const totalReturnAmount = returnData.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0)
+
+// 4. Kas Bersih = Hanya Uang Lunas yang transaksinya masih valid
+const netSales = totalCashSales
+
+setReport({ 
+  totalCashSales, 
+  totalPiutangShift, 
+  totalReturnAmount, 
+  netSales, 
+  orderCount: salesData.filter((t: any) => t.status !== 'RETURNED').length, 
+  returnCount: returnData.length 
+})
         setReturns(returnData)
       }
     } catch (err) { console.error(err) } finally { setLoading(false) }
@@ -85,20 +110,18 @@ export default function LaporanShiftPage() {
 
   return (
     <div className="min-h-screen bg-white text-black font-sans w-full overflow-x-hidden pb-20">
-      {/* HEADER NAV - RESPONSIVE PADDING */}
       <div className="border-b border-gray-100 px-4 lg:px-10 py-6 flex items-center justify-between sticky top-0 z-40 bg-white/90 backdrop-blur-md w-full print:hidden">
         <Link href="/admin/pos" className="flex items-center gap-2 text-gray-400 hover:text-black transition-all">
           <ArrowLeft size={18} />
-          <span className="text-xs font-bold uppercase tracking-widest">POS</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-500">POS Utama</span>
         </Link>
         <button onClick={fetchData} className="flex items-center gap-2 bg-black text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest active:scale-95 transition-all shadow-xl">
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Update Data
         </button>
       </div>
 
       <div className="w-full px-4 lg:px-10 py-8 lg:py-10 space-y-8 lg:space-y-10" id="report-content-to-print">
         
-        {/* HERO SECTION - RATA & RESPONSIF */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 pb-8 border-b border-gray-100">
           <div className="space-y-2 text-center lg:text-left w-full lg:w-auto">
             <h1 className="text-3xl lg:text-4xl font-bold uppercase tracking-tighter leading-none">Laporan Shift</h1>
@@ -116,35 +139,35 @@ export default function LaporanShiftPage() {
           </div>
         </div>
 
-        {/* STATS GRID - 1 COL MOBILE / 3 COLS DESKTOP */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-50 border border-gray-100 p-8 rounded-2xl space-y-4 shadow-sm">
-            <div className="flex justify-between items-center text-gray-400 font-bold text-xs uppercase tracking-widest">
-              <span>Gross Sales</span><ShoppingBag size={18}/>
-            </div>
-            <p className="text-3xl font-bold tracking-tight">Rp {(report?.totalGross || 0).toLocaleString('id-ID')}</p>
-            <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">{report?.orderCount || 0} Transaksi</p>
+        {/* STATS GRID - 4 COLS (Tambah Kotak Piutang) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-gray-50 border border-gray-100 p-6 rounded-2xl space-y-3 shadow-sm">
+            <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest flex justify-between">Gross Cash <ShoppingBag size={14}/></p>
+            <p className="text-2xl font-bold tracking-tight">Rp {(report?.totalCashSales || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase">Uang Masuk Lunas</p>
           </div>
 
-          <div className="bg-red-50/50 border border-red-100 p-8 rounded-2xl space-y-4 shadow-sm">
-            <div className="flex justify-between items-center text-red-400 font-bold text-xs uppercase tracking-widest">
-              <span>Total Retur</span><RefreshCw size={18}/>
-            </div>
-            <p className="text-3xl font-bold text-red-600 tracking-tight">Rp {(report?.totalReturnAmount || 0).toLocaleString('id-ID')}</p>
-            <p className="text-[12px] font-bold text-red-400 uppercase tracking-widest">{report?.returnCount || 0} Items</p>
+          <div className="bg-orange-50/50 border border-orange-100 p-6 rounded-2xl space-y-3 shadow-sm">
+            <p className="text-orange-400 font-bold text-[10px] uppercase tracking-widest flex justify-between">Piutang Shift <AlertTriangle size={14}/></p>
+            <p className="text-2xl font-bold text-orange-600 tracking-tight">Rp {(report?.totalPiutangShift || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[10px] font-bold text-orange-400 uppercase">Hutang Seller Hari Ini</p>
           </div>
 
-          <div className="bg-black p-8 rounded-2xl space-y-4 relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 right-0 w-2 h-full bg-green-500" />
-            <div className="flex justify-between items-center text-gray-500 font-bold text-xs uppercase tracking-widest">
-              <span>Kas Bersih</span><Banknote size={18} className="text-green-500"/>
-            </div>
-            <p className="text-4xl font-bold text-white tracking-tighter">Rp {(report?.netSales || 0).toLocaleString('id-ID')}</p>
-            <p className="text-[12px] font-bold text-green-500 uppercase tracking-widest">Setoran Laci</p>
+          <div className="bg-red-50/50 border border-red-100 p-6 rounded-2xl space-y-3 shadow-sm">
+            <p className="text-red-400 font-bold text-[10px] uppercase tracking-widest flex justify-between">Total Retur <RefreshCw size={14}/></p>
+            <p className="text-2xl font-bold text-red-600 tracking-tight">Rp {(report?.totalReturnAmount || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[10px] font-bold text-red-400 uppercase">{report?.returnCount || 0} Transaksi</p>
+          </div>
+
+          <div className="bg-black p-6 rounded-2xl space-y-3 relative overflow-hidden shadow-xl">
+            <div className="absolute top-0 right-0 w-1.5 h-full bg-green-500" />
+            <p className="text-gray-500 font-bold text-[10px] uppercase tracking-widest flex justify-between">Kas Bersih <Banknote size={14} className="text-green-500"/></p>
+            <p className="text-2xl font-bold text-white tracking-tighter">Rp {(report?.netSales || 0).toLocaleString('id-ID')}</p>
+            <p className="text-[10px] font-bold text-green-500 uppercase">Wajib Ada di Laci</p>
           </div>
         </div>
 
-        {/* LAMPIRAN RETUR - GRID RESPONSIVE */}
+        {/* BUKTI RETUR */}
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3 border-l-4 border-black pl-5">
             <AlertCircle size={20} />
@@ -152,24 +175,20 @@ export default function LaporanShiftPage() {
           </div>
           
           {returns.length === 0 ? (
-            <div className="bg-gray-50 border-2 border-dashed border-gray-100 rounded-3xl p-20 text-center">
-              <p className="text-[12px] font-bold text-gray-300 uppercase tracking-[0.2em]">Tidak ada data retur shift ini</p>
+            <div className="bg-gray-50 border-2 border-dashed border-gray-100 rounded-3xl p-16 text-center">
+              <p className="text-[11px] font-bold text-gray-300 uppercase tracking-[0.2em]">Tidak ada retur shift ini</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {returns.map((item) => (
-                <div key={item.id} className="p-5 bg-white border border-gray-100 rounded-2xl hover:border-black transition-all group flex items-center gap-5 shadow-sm">
-                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0">
-                    <img 
-                      src={item.return_proof_url || 'https://placehold.co/200x200?text=NO+IMAGE'} 
-                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
-                      alt="proof" 
-                    />
+                <div key={item.id} className="p-4 bg-white border border-gray-100 rounded-2xl flex items-center gap-4 shadow-sm">
+                  <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shrink-0">
+                    <img src={item.return_proof_url || 'https://placehold.co/200x200?text=HNM'} className="w-full h-full object-cover grayscale" alt="proof" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">#{item.id?.slice(0,8)}</p>
-                    <p className="text-[12px] font-bold text-red-600 uppercase truncate mt-1">{item.return_reason || 'Retur Sepatu'}</p>
-                    <p className="text-lg font-bold mt-1 text-black">-Rp {Number(item.total || 0).toLocaleString('id-ID')}</p>
+                    <p className="text-[8px] font-bold text-gray-300 uppercase">#{item.id?.slice(0,8)}</p>
+                    <p className="text-[11px] font-bold text-red-600 uppercase truncate">{item.return_reason || 'Retur Barang'}</p>
+                    <p className="text-md font-bold text-black">-Rp {Number(item.total || 0).toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               ))}
@@ -177,25 +196,12 @@ export default function LaporanShiftPage() {
           )}
         </div>
 
-        {/* FOOTER ACTION */}
         <div className="pt-10 print:hidden">
-          <button 
-            onClick={handlePrintReport}
-            className="w-full bg-black text-white py-6 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:bg-zinc-800 transition-all active:scale-95 shadow-2xl"
-          >
+          <button onClick={handlePrintReport} className="w-full bg-black text-white py-6 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:bg-zinc-800 transition-all active:scale-95 shadow-2xl">
             <Printer size={20} /> Cetak Laporan Resmi
           </button>
         </div>
       </div>
-
-      <style jsx global>{`
-        @media print {
-          .print\\:hidden { display: none !important; }
-          body { padding: 0 !important; background: white !important; }
-          .rounded-2xl, .rounded-xl { border-radius: 8px !important; border: 1px solid #eee !important; }
-          .shadow-2xl, .shadow-sm { box-shadow: none !important; }
-        }
-      `}</style>
     </div>
   )
 }

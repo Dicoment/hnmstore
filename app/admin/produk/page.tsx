@@ -489,34 +489,97 @@ export default function InventoryHnMStore() {
         </div>
       )}
 
-      {/* --- MEDIA MODAL (TETAP ADA) --- */}
-      {showMediaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 text-black font-bold">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowMediaModal(false)} />
-          <div className="relative bg-white w-full max-w-4xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black font-bold">
-              <h3 className="font-bold uppercase tracking-tight text-xl text-black">Cloud Library</h3>
-              <button onClick={() => setShowMediaModal(false)} className="bg-gray-50 p-2.5 rounded-xl text-black hover:bg-red-500 hover:text-white transition-all "><X size={20}/></button>
-            </div>
-            <div className="p-6 lg:p-8 overflow-y-auto grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 bg-gray-50">
-              {existingImages.map((file: any, i) => (
-                <div key={i} className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-4 transition-all ${selectedProduct?.images.includes(file.name) ? 'border-black' : 'border-transparent'}`}
-                  onClick={() => {
-                    if (!selectedProduct) return
-                    const has = selectedProduct.images.includes(file.name)
-                    setSelectedProduct({...selectedProduct, images: has ? selectedProduct.images.filter(u => u !== file.name) : [...selectedProduct.images, file.name]})
-                  }}>
-                  <Image src={file.url || `/uploads/${file.name}`} fill className="object-cover" alt="m" unoptimized />
-                  {selectedProduct?.images.includes(file.name) && <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><CheckCircle2 className="text-white" size={25} /></div>}
-                </div>
-              ))}
-            </div>
-            <div className="p-6 lg:p-8 bg-white border-t border-gray-100 flex justify-end">
-              <button onClick={() => setShowMediaModal(false)} className="bg-black text-white px-12 py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl">Selesai</button>
-            </div>
-          </div>
+{showMediaModal && (
+  <div className="fixed inset-0 z-100 flex items-center justify-center p-4 lg:p-10 text-black">
+    {/* Overlay */}
+    <div 
+      className="absolute inset-0 bg-black/80 backdrop-blur-md" 
+      onClick={() => setShowMediaModal(false)} 
+    />
+
+    {/* Modal Container - Fixed rounded-4xl */}
+    <div className="relative bg-white w-full max-w-6xl rounded-4xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl">
+      
+      {/* Header */}
+      <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white z-20">
+        <div className="space-y-1">
+          <h3 className="font-bold uppercase tracking-tighter text-2xl text-black leading-none">Cloud Library</h3>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Aset produk HnM Store</p>
         </div>
-      )}
+        <button 
+          onClick={() => setShowMediaModal(false)} 
+          className="bg-gray-100 p-3 rounded-2xl text-black hover:bg-red-500 hover:text-white transition-all active:scale-90"
+        >
+          <X size={20}/>
+        </button>
+      </div>
+
+      {/* Grid Content */}
+      <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 lg:gap-6">
+          {existingImages.map((file: any, i) => {
+            const isSelected = selectedProduct?.images.includes(file.name);
+            
+            return (
+              <div 
+                key={i} 
+                className={`relative aspect-square rounded-3xl overflow-hidden cursor-pointer border-4 transition-all duration-300 group shadow-sm ${
+                  isSelected ? 'border-black scale-[0.96] shadow-xl' : 'border-white hover:border-gray-200'
+                }`}
+                onClick={() => {
+                  if (!selectedProduct) return;
+                  const has = selectedProduct.images.includes(file.name);
+                  setSelectedProduct({
+                    ...selectedProduct, 
+                    images: has 
+                      ? selectedProduct.images.filter(u => u !== file.name) 
+                      : [...selectedProduct.images, file.name]
+                  });
+                }}
+              >
+                <div className="absolute inset-0">
+                  <Image 
+                    src={file.url || `/api/media/view?bucket=ProductImage&name=${file.name}`} 
+                    fill 
+                    sizes="(max-width: 768px) 50vw, 20vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-110" 
+                    alt="HnM" 
+                    unoptimized 
+                  />
+                </div>
+                
+                {/* Overlay Checkmark - FIXED ICON NAME */}
+                {isSelected && (
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white text-black rounded-full p-2 shadow-2xl border-2 border-white">
+                      <CheckCircle2 className="font-bold" size={24} strokeWidth={4} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="p-6 lg:p-8 bg-white border-t border-gray-100 flex justify-between items-center z-20">
+        <div className="flex flex-col font-bold">
+          <p className="text-xs text-gray-400 uppercase tracking-widest leading-none mb-1">Pilihan</p>
+          <p className="text-sm text-black uppercase leading-none font-bold">
+            {selectedProduct?.images.length || 0} File terpilih
+          </p>
+        </div>
+        <button 
+          onClick={() => setShowMediaModal(false)} 
+          className="bg-black text-white px-10 py-4 lg:py-5 rounded-2xl font-bold text-xs lg:text-sm uppercase tracking-widest shadow-xl hover:bg-zinc-800 transition-all active:scale-95"
+        >
+          Selesai
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }
