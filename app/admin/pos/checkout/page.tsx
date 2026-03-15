@@ -24,59 +24,92 @@ export default function CheckoutPage() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   const total = Math.max(0, subtotal - discount)
 
- const handleFinish = async () => {
+  const handleFinish = async () => {
     if (!customerName) return alert("Nama Seller/Pelanggan wajib diisi!")
     if (isDebt && !dueDate) return alert("Pilih tanggal jatuh tempo!")
     if (!isDebt && !paymentMethod) return alert("Pilih metode pembayaran!")
 
     setIsProcessing(true)
     try {
-      const adminId = localStorage.getItem('user_id')
+      // Pastikan user_id yang diambil adalah UUID Profile
+      const adminId = localStorage.getItem('user_id') 
       
       for (const item of cart) {
-        // 1. Ambil stok lama buat log
+        // 1. Ambil stok lama untuk audit log
         const oldStockRes = await fetch('/api/vps-db', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sql: `SELECT stock FROM public."ProductSizeStock" WHERE id = $1`, params: [item.stockId] })
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sql: `SELECT stock FROM public."ProductSizeStock" WHERE id = $1`, 
+            params: [item.stockId] 
+          })
         });
         const oldStockData = await oldStockRes.json();
         const oldStock = oldStockData.data?.[0]?.stock || 0;
 
         // 2. Potong Stok
         await fetch('/api/vps-db', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sql: `UPDATE public."ProductSizeStock" SET stock = stock - $1 WHERE id = $2`,
             params: [item.quantity, item.stockId]
           })
         })
 
-        // 3. CATAT MUTASI KELUAR (YANG TADI GAK ADA)
+        // 3. Catat Mutasi (Gunakan 'TERJUAL' agar warna di UI sesuai)
         await fetch('/api/vps-db', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sql: `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by, created_at) 
-                  VALUES ($1, $2, $3, $4, 'KELUAR', $5, $6, NOW())`,
-            params: [item.name, item.size, oldStock, oldStock - item.quantity, `Penjualan ke ${customerName}`, adminId]
+                  VALUES ($1, $2, $3, $4, 'TERJUAL', $5, $6, NOW())`,
+            params: [
+              item.name, 
+              item.size, 
+              oldStock, 
+              oldStock - item.quantity, 
+              `Penjualan ke ${customerName}`, 
+              adminId
+            ]
           })
         })
       }
 
-      // 4. Simpan Transaksi
+      // 4. Simpan Transaksi Utama
       await fetch('/api/vps-db', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sql: `INSERT INTO public."Transactions" (customer, whatsapp, subtotal, discount, total, items, items_count, created_by, status, payment_status, due_date, payment_method) 
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'SUCCESS', $9, $10, $11)`,
-          params: [customerName, whatsapp, subtotal, discount, total, JSON.stringify(cart), cart.length, adminId, isDebt ? 'HUTANG' : 'LUNAS', dueDate || null, isDebt ? 'HUTANG' : paymentMethod]
+          params: [
+            customerName, 
+            whatsapp, 
+            subtotal, 
+            discount, 
+            total, 
+            JSON.stringify(cart), 
+            cart.length, 
+            adminId, 
+            isDebt ? 'HUTANG' : 'LUNAS', 
+            dueDate || null, 
+            isDebt ? 'HUTANG' : paymentMethod
+          ]
         })
       })
 
       alert("Transaksi Sukses & Mutasi Tercatat!")
       localStorage.removeItem('hnm_temp_cart')
       router.push(isDebt ? '/admin/pos/hutang' : '/admin/pos/riwayat')
-    } catch (e) { alert("Checkout Gagal") } finally { setIsProcessing(false) }
+    } catch (e) { 
+      console.error(e)
+      alert("Checkout Gagal") 
+    } finally { 
+      setIsProcessing(false) 
+    }
   }
+
   return (
     <div className="min-h-screen bg-white text-black font-sans relative">
       <div className="max-w-7xl mx-auto p-5 lg:p-12 pb-32 lg:pb-12">
@@ -89,10 +122,8 @@ export default function CheckoutPage() {
           <h1 className="text-3xl lg:text-4xl font-bold uppercase tracking-tighter">Checkout</h1>
         </div>
 
-        {/* LAYOUT GRID: 2 KOLOM DI DESKTOP, 1 KOLOM DI MOBILE */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* KOLOM KIRI: FORM INPUT (COL 8) */}
+          {/* FORM INPUT */}
           <div className="lg:col-span-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
@@ -149,7 +180,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* KOLOM KANAN: SIDEBAR RINGKASAN DESKTOP (COL 4) */}
+          {/* SIDEBAR TOTAL */}
           <div className="hidden lg:block lg:col-span-4">
             <div className="sticky top-10 bg-gray-50 p-8 rounded-xl border border-gray-100 shadow-sm space-y-6">
               <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-3">
@@ -174,7 +205,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* --- SLIM STICKY FOOTER UNTUK MOBILE (HIDDEN DI DESKTOP) --- */}
+      {/* MOBILE FOOTER */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-50 lg:hidden shadow-[0_-8px_30px_rgb(0,0,0,0.08)]">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col">
