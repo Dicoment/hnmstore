@@ -19,18 +19,18 @@ export default function HistoryStokPage() {
     try {
       setLoading(true)
       const sql = `
-        SELECT 
-          sl.*,
-          p.full_name as profile_name,
-          (
-            SELECT images FROM public."Product" 
-            WHERE name = sl.product_name 
-            LIMIT 1
-          ) as product_images
-        FROM public."StockLog" sl
-        LEFT JOIN public."Profiles" p ON sl.created_by = p.id
-        ORDER BY sl.created_at DESC
-      `
+  SELECT 
+    sl.*,
+    p.full_name as profile_name,
+    (
+      SELECT images FROM public."Product" 
+      WHERE id = sl.product_id -- PAKAI ID, BUKAN NAMA!
+      LIMIT 1
+    ) as product_images
+  FROM public."StockLog" sl
+  LEFT JOIN public."Profiles" p ON sl.created_by = p.id
+  ORDER BY sl.created_at DESC
+`
       const res = await fetch('/api/vps-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import TableCustom from '../components/table'
 import ModalRetur from '../components/modalretur'
+import ModalDetailOrder from '@/components/modaldetailorder'
 
 export default function RiwayatTransaksiPage() {
   const [data, setData] = useState<any[]>([])
@@ -31,24 +32,24 @@ export default function RiwayatTransaksiPage() {
       const offset = (currentPage - 1) * pageSize
 
       // SQL SUBQUERY SAKTI BIAR GAMBAR MUNCUL DIAMBIL DARI TABEL PRODUCT
-      const sql = `
-        SELECT 
-          t.*, 
-          COUNT(*) OVER() as full_count,
-          (
-            SELECT images FROM public."Product" 
-            WHERE name = (
-              SELECT (value->>'name')::text 
-              FROM jsonb_array_elements(t.items::jsonb) 
-              LIMIT 1
-            )
-            LIMIT 1
-          ) as product_images
-        FROM public."Transactions" t 
-        WHERE t.customer ILIKE $1 OR t.id::text ILIKE $1
-        ORDER BY t.created_at DESC 
-        LIMIT $2 OFFSET $3
-      `
+ const sql = `
+  SELECT 
+    t.*, 
+    COUNT(*) OVER() as full_count,
+    (
+      SELECT images FROM public."Product" 
+      WHERE id = (
+        SELECT (value->>'productId')::uuid -- AMBIL ID DARI JSON ITEMS
+        FROM jsonb_array_elements(t.items::jsonb) 
+        LIMIT 1
+      )
+      LIMIT 1
+    ) as product_images
+  FROM public."Transactions" t 
+  WHERE t.customer ILIKE $1 OR t.id::text ILIKE $1
+  ORDER BY t.created_at DESC 
+  LIMIT $2 OFFSET $3
+`
 
       const res = await fetch('/api/vps-db', {
         method: 'POST',
@@ -211,43 +212,11 @@ export default function RiwayatTransaksiPage() {
       </div>
 
       {/* MODAL DETAIL */}
-      {showDetail && selectedTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 text-black font-bold">
-          <div className="bg-white rounded-4xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200 shadow-2xl">
-            <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xs uppercase tracking-widest flex items-center gap-2"><ShoppingBag size={14}/> Detail Order</h2>
-              <button onClick={() => setShowDetail(false)} className="p-2 hover:bg-red-500 hover:text-white rounded-xl transition-all"><X size={18}/></button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              <div className="p-5 bg-blue-50 text-blue-700 rounded-2xl text-xs uppercase flex flex-col gap-1 border border-blue-100">
-                <div className="flex items-center gap-3"><User size={16}/> {selectedTx.customer}</div>
-                <div className="text-blue-300">INV-{selectedTx.id}</div>
-              </div>
-              <div className="space-y-2">
-                {(() => {
-                  let items = typeof selectedTx.items === 'string' ? JSON.parse(selectedTx.items) : selectedTx.items;
-                  return items.map((item: any, i: number) => (
-                    <div key={i} className="flex gap-4 items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm">
-                      <div className="w-12 h-12 relative rounded-xl overflow-hidden shrink-0 border border-gray-100">
-                        <Image src={item.image ? `/api/media/view?bucket=ProductImage&name=${item.image}` : '/placeholder.png'} alt="p" fill className="object-cover" unoptimized />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs uppercase truncate text-black font-bold">{item.name}</p>
-                        <p className="text-[11px] text-gray-400 uppercase leading-none mt-1">SZ: {item.size} | {item.quantity} Ps</p>
-                      </div>
-                      <p className="text-xs text-black">RP {(item.price * item.quantity).toLocaleString()}</p>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-            <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-              <span className="text-xs uppercase text-gray-400">Total</span>
-              <span className="text-2xl text-red-600 tracking-tighter leading-none">RP {Number(selectedTx.total).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      )}
+<ModalDetailOrder 
+  show={showDetail} 
+  onClose={() => setShowDetail(false)} 
+  selectedTx={selectedTx} 
+/>
 
       <ModalRetur 
         show={showRetur} onClose={() => setShowRetur(false)} 

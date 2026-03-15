@@ -7,6 +7,7 @@ import {
 import Link from 'next/link'
 import Image from 'next/image'
 import TableCustom from '../components/table'
+import ModalDetailOrder from '@/components/modaldetailorder'
 
 export default function LaporanPenjualanPage() {
   const [tableData, setTableData] = useState<any[]>([]) 
@@ -16,7 +17,8 @@ export default function LaporanPenjualanPage() {
   const [endDate, setEndDate] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
-
+  const [showDetail, setShowDetail] = useState(false)
+  const [selectedTx, setSelectedTx] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalData, setTotalData] = useState(0)
   const limit = 10
@@ -217,42 +219,11 @@ export default function LaporanPenjualanPage() {
       </div>
 
       {/* MODAL DETAIL */}
-      {selectedTransaction && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-4xl w-full max-w-md overflow-hidden shadow-2xl font-bold">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xs uppercase tracking-widest flex items-center gap-3 text-black"><ShoppingBag size={18}/> Detail Order</h2>
-              <button onClick={() => setSelectedTransaction(null)} className="p-2 hover:bg-red-500 hover:text-white rounded-xl transition-all"><X size={20}/></button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-               <div className="flex items-center gap-3 p-4 bg-blue-50 text-blue-700 rounded-2xl text-xs uppercase">
-                 <User size={16}/> {selectedTransaction.customer}
-               </div>
-               <div className="space-y-3">
-                {(() => {
-                  let items = typeof selectedTransaction.items === 'string' ? JSON.parse(selectedTransaction.items) : selectedTransaction.items;
-                  return items.map((item: any, i: number) => (
-                    <div key={i} className="flex gap-4 p-4 border border-gray-100 rounded-2xl bg-white items-center shadow-sm">
-                      <div className="w-12 h-12 relative rounded-xl overflow-hidden shrink-0 border border-gray-100">
-                        <Image src={item.image ? `/api/media/view?bucket=ProductImage&name=${item.image}` : '/placeholder.png'} alt="p" fill className="object-cover" unoptimized />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs uppercase truncate text-black">{item.name}</p>
-                        <p className="text-xs text-gray-400 uppercase mt-1 leading-none font-bold">SZ: {item.size} | {item.quantity} Ps</p>
-                      </div>
-                      <p className="text-xs font-bold text-black">Rp {(item.price * item.quantity).toLocaleString()}</p>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-              <span className="text-xs uppercase text-gray-400 font-bold leading-none">Total Nota</span>
-              <span className="text-2xl text-red-600 tracking-tighter font-bold leading-none">Rp {Number(selectedTransaction.total).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      )}
+<ModalDetailOrder 
+  show={showDetail} 
+  onClose={() => setShowDetail(false)} 
+  selectedTx={selectedTx} 
+/>
     </div>
   )
 }
