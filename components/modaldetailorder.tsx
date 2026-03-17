@@ -14,7 +14,7 @@ export default function ModalDetailOrder({ show, onClose, selectedTx }: ModalDet
 
   // Parsing items dari JSON string ke array object
   const items = typeof selectedTx.items === 'string' ? JSON.parse(selectedTx.items) : selectedTx.items
-
+  
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in duration-200 text-black font-bold">
@@ -50,32 +50,40 @@ export default function ModalDetailOrder({ show, onClose, selectedTx }: ModalDet
           {/* LIST ITEMS */}
           <div className="space-y-3">
             {items.map((item: any, i: number) => {
-              // LOGIC FIX: Pastikan ambil nama file gambar yang bener dari JSON
-              const imgFile = item.image || (item.images && item.images[0]);
+
+              // ✅ FIX: fallback ke product_images kalau item gak punya image
+              const imgFile =
+                item.image ||
+                (item.images && item.images[0]) ||
+                selectedTx.product_images?.[0];
 
               return (
                 <div key={i} className="flex gap-4 p-3 border border-gray-100 rounded-xl bg-white items-center shadow-sm">
                   <div className="w-14 h-14 relative rounded-xl overflow-hidden shrink-0 border border-gray-100 bg-gray-50">
+                    
                     {imgFile ? (
                       <Image 
-                        src={`/api/media/view?bucket=ProductImage&name=${imgFile}`} 
-                        alt={item.name} 
-                        fill 
-                        className="object-cover" 
-                        unoptimized 
+                        src={`/uploads/${imgFile}`}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-300">
                         <ImageIcon size={20} />
                       </div>
                     )}
+
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold uppercase truncate text-black">{item.name}</p>
                     <p className="text-[10px] text-gray-400 uppercase mt-1 leading-none font-bold">
                       SZ: {item.size} | {item.quantity} Ps
                     </p>
                   </div>
+
                   <p className="text-xs font-bold text-black">
                     Rp {(item.price * item.quantity).toLocaleString()}
                   </p>
