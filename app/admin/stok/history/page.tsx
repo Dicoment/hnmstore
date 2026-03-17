@@ -133,7 +133,7 @@ export default function HistoryStokPage() {
                       <div className="flex items-center gap-4 font-bold">
                         <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-100 border border-gray-100 shrink-0 font-bold">
                           {log.product_images?.[0] ? (
-                            <Image src={`/api/media/view?bucket=ProductImage&name=${log.product_images[0]}`} alt="p" fill className="object-cover" unoptimized />
+                            <Image src={`/uploads/${log.product_images[0]}`} alt="p" fill className="object-cover" unoptimized />
                           ) : (
                             <div className="flex items-center justify-center h-full text-gray-300 font-bold"><ImageIcon size={16} /></div>
                           )}
@@ -193,7 +193,7 @@ export default function HistoryStokPage() {
                 </div>
                 <div className="flex items-center gap-4 font-bold">
                   <div className="w-14 h-14 relative rounded-lg overflow-hidden bg-gray-50 shrink-0 font-bold">
-                    {log.product_images?.[0] ? <Image src={`/api/media/view?bucket=ProductImage&name=${log.product_images[0]}`} alt="p" fill className="object-cover" unoptimized /> : <div className="flex items-center justify-center h-full text-gray-300 font-bold"><ImageIcon size={16} /></div>}
+                    {log.product_images?.[0] ? <Image src={`/uploads/${log.product_images[0]}`} alt="p" fill className="object-cover" unoptimized /> : <div className="flex items-center justify-center h-full text-gray-300 font-bold"><ImageIcon size={16} /></div>}
                   </div>
                   <div className="min-w-0 flex-1 font-bold">
                     <div className="text-xs uppercase text-black truncate leading-none font-bold">{log.product_name}</div>
