@@ -26,9 +26,9 @@ export default function GridProduk({
       
 
       {/* Grid List */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6 text-black">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 text-black">
         {products.filter(p => (p.name || '').toLowerCase().includes(searchTerm.toLowerCase())).map(product => (
-          <div key={product.id} className="border border-gray-100 rounded-2xl p-4 flex flex-col gap-4 bg-white shadow-sm hover:border-black transition-all">
+          <div key={product.id} className="border border-gray-100 rounded-xl p-4 flex flex-col gap-4 bg-white shadow-sm hover:border-black transition-all">
             <div className="aspect-square relative rounded-xl overflow-hidden bg-gray-50">
               <Image 
                 src={product.images?.[0] ? `/uploads/${product.images[0]}` : '/placeholder.png'} 

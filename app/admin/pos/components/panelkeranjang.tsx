@@ -28,7 +28,7 @@ export default function PanelKeranjang({
           <button onClick={() => setShowMobileCart(false)} className="lg:hidden p-2 bg-black text-white rounded-xl">
             <X size={18}/>
           </button>
-          <span className="hidden lg:block bg-black text-white px-4 py-1.5 rounded-lg text-xs font-bold uppercase">
+          <span className="hidden lg:block bg-black text-white px-4 py-1.5 rounded-xl text-xs font-bold uppercase">
             {cart.length} Item
           </span>
         </div>
@@ -52,7 +52,7 @@ export default function PanelKeranjang({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-white rounded-lg border border-gray-200">
+                  <div className="flex items-center bg-white rounded-xl border border-gray-200">
                     <button onClick={() => updateQty(item.stockId, -1)} className="p-2 hover:text-red-600 transition-all font-bold text-xs"><Minus size={14}/></button>
                     <span className="text-xs font-bold w-6 text-center">{item.quantity}</span>
                     <button onClick={() => updateQty(item.stockId, 1)} className="p-2 hover:text-green-600 transition-all font-bold text-xs"><Plus size={14}/></button>
@@ -78,7 +78,7 @@ export default function PanelKeranjang({
           <button 
             disabled={cart.length === 0} 
             onClick={handleCheckout} 
-            className="w-full py-6 bg-black text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 transition-all flex items-center justify-center gap-4"
+            className="w-full py-6 bg-black text-white rounded-sm font-bold text-xs uppercase tracking-[0.2em] shadow-xl active:scale-95 disabled:bg-gray-100 disabled:text-gray-300 transition-all flex items-center justify-center gap-4"
           >
             Lanjut Bayar <ArrowRight size={20} />
           </button>

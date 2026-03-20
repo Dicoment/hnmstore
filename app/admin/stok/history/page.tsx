@@ -14,7 +14,8 @@ export default function HistoryStokPage() {
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-
+  const [adminName, setAdminName] = useState('')
+  
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true)

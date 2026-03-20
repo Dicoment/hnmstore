@@ -102,7 +102,7 @@ export default function POSPage() {
 
       {/* 2. AREA UTAMA */}
       <main className="flex-1 flex flex-col min-w-0 bg-gray-50/30">
-        <header className="flex items-center gap-4 p-4 lg:px-8 border-b border-gray-100 bg-white sticky top-0 z-10">
+        <header className="flex items-center gap-2 p-2 lg:px-8 border-b border-gray-100 bg-white sticky top-0 z-10">
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-3 bg-black text-white rounded-xl shadow-lg">
             <Menu size={20}/>
           </button>
@@ -131,10 +131,10 @@ export default function POSPage() {
 
         {/* FLOATING CART BUTTON (MOBILE ONLY) */}
         {!isSidebarOpen && cart.length > 0 && (
-          <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%]">
+          <div className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 z-50 w-full">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="w-full bg-black text-white p-5 rounded-2xl shadow-2xl flex items-center justify-between"
+              className="w-full bg-black text-white p-5 shadow-2xl flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <ShoppingCart size={20}/>
