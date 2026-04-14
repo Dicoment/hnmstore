@@ -5,10 +5,10 @@ import {
   LayoutDashboard, Tags, Shapes, PanelLeft, PlusCircle, Package, 
   ShoppingCart, Settings, LogOut, User, ImageIcon, Users, 
   MessageSquare, ChevronRight, Boxes, FileBarChart, Menu, 
-  X as CloseIcon, RefreshCcw, History, Globe
+  X as CloseIcon, RefreshCcw, History, Globe, ArrowLeft
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 export default function AdminLayout({
   children,
@@ -21,21 +21,17 @@ export default function AdminLayout({
   const [adminEmail, setAdminEmail] = useState('')
   const [isDataLoaded, setIsDataLoaded] = useState(false) 
   const pathname = usePathname()
+  const router = useRouter()
 
   useEffect(() => {
     const getAdminData = async () => {
       try {
         const userEmail = localStorage.getItem('user_email')
-        
-        // JANGAN REDIRECT MANUAL DI SINI. 
-        // Biarkan Middleware yang melempar ke /login jika token ga ada.
         if (!userEmail) {
           setIsDataLoaded(true)
           return
         }
-        
         setAdminEmail(userEmail)
-        
         const res = await fetch('/api/vps-db', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -44,16 +40,14 @@ export default function AdminLayout({
             params: [userEmail]
           })
         })
-        
         const result = await res.json()
-        
         if (result.data && result.data.length > 0) {
           setAdminName(result.data[0].full_name || 'Admin')
         }
       } catch (err) {
         console.error("Gagal load profil admin:", err)
       } finally {
-        setIsDataLoaded(true) // INI WAJIB: Loading harus mati meskipun fetch gagal.
+        setIsDataLoaded(true)
       }
     }
     getAdminData()
@@ -63,24 +57,17 @@ export default function AdminLayout({
     setMobileOpen(false)
   }, [pathname])
 
-const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
-      // 1. Panggil API logout untuk hapus cookie server-side
       await fetch('/api/auth/logout', { method: 'POST' })
-      
-      // 2. Bersihkan sisa data di local storage
       localStorage.clear()
-      
-      // 3. Paksa browser pindah ke login dan refresh total
       window.location.replace('/login')
     } catch (err) {
-      // Fallback jika API gagal, tetap hapus local dan pindah
       localStorage.clear()
       window.location.replace('/login')
     }
   }
 
-  // Tampilan Loading Screen standar
   if (!isDataLoaded) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-white text-black">
@@ -100,7 +87,7 @@ const handleLogout = async () => {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - SEMUA LOGIC ASLI AMAN */}
       <aside
         className={`
           bg-white border-r border-gray-200 shadow-xl lg:shadow-sm
@@ -153,46 +140,11 @@ const handleLogout = async () => {
           <SidebarItem href="/admin" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin'} />
 
           <SidebarLabel label="Transaksi" collapsed={collapsed} mobileOpen={mobileOpen} />
-<SidebarItem 
-  href="/admin/pos" 
-  icon={<ShoppingCart size={18} />} 
-  label="POS (Kasir)" 
-  collapsed={collapsed} 
-  mobileOpen={mobileOpen} 
-  active={pathname === '/admin/pos'} 
-/>
-<SidebarItem 
-  href="/admin/pos/riwayat" 
-  icon={<History size={18} />} 
-  label="Riwayat Transaksi" 
-  collapsed={collapsed} 
-  mobileOpen={mobileOpen} 
-  active={pathname === '/admin/pos/riwayat'} 
-/>
-<SidebarItem 
-  href="/admin/pos/hutang" 
-  icon={<Users size={18} />} 
-  label="Hutang Seller" 
-  collapsed={collapsed} 
-  mobileOpen={mobileOpen} 
-  active={pathname === '/admin/pos/hutang'} 
-/>
-<SidebarItem 
-  href="/admin/pos/laporan-penjualan" 
-  icon={<FileBarChart size={18} />} 
-  label="Laporan Penjualan" 
-  collapsed={collapsed} 
-  mobileOpen={mobileOpen} 
-  active={pathname === '/admin/pos/laporan-penjualan'} 
-/>
-<SidebarItem 
-  href="/admin/pos/laporan-shift" 
-  icon={<RefreshCcw size={18} />} 
-  label="Laporan Shift" 
-  collapsed={collapsed} 
-  mobileOpen={mobileOpen} 
-  active={pathname === '/admin/pos/laporan-shift'} 
-/>
+          <SidebarItem href="/admin/pos" icon={<ShoppingCart size={18} />} label="POS (Kasir)" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos'} />
+          <SidebarItem href="/admin/pos/riwayat" icon={<History size={18} />} label="Riwayat Transaksi" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos/riwayat'} />
+          <SidebarItem href="/admin/pos/hutang" icon={<Users size={18} />} label="Hutang Seller" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos/hutang'} />
+          <SidebarItem href="/admin/pos/laporan-penjualan" icon={<FileBarChart size={18} />} label="Laporan Penjualan" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos/laporan-penjualan'} />
+          <SidebarItem href="/admin/pos/laporan-shift" icon={<RefreshCcw size={18} />} label="Laporan Shift" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/pos/laporan-shift'} />
 
           <SidebarLabel label="Katalog Produk" collapsed={collapsed} mobileOpen={mobileOpen} />
           <SidebarItem href="/admin/produk" icon={<Package size={18} />} label="Semua Produk" collapsed={collapsed} mobileOpen={mobileOpen} active={pathname === '/admin/produk'} />
@@ -235,35 +187,62 @@ const handleLogout = async () => {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${collapsed ? "lg:ml-20" : "lg:ml-64"} ml-0 min-w-0`}>
-        <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-4 overflow-hidden">
-            <button 
-              onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2.5 bg-gray-100 rounded-xl text-black active:scale-90 shrink-0"
-            >
-              <Menu size={20} />
+        {/* HEADER: BACK (Kiri) - JUDUL (Tengah) - HAMBURGER (Kanan) */}
+        <header className="h-16 lg:h-20 bg-white border-b border-gray-200 px-4 flex items-center sticky top-0 z-40">
+          <div className="flex-none w-10">
+            <button onClick={() => router.back()} className="text-black active:scale-90 p-1">
+              <ArrowLeft size={24} />
             </button>
-            <h1 className="font-bold text-gray-900 text-sm lg:text-xl uppercase tracking-tighter truncate">
+          </div>
+
+          <div className="flex-1 flex justify-center overflow-hidden">
+            <h1 className="font-bold text-gray-900 text-sm lg:text-xl uppercase tracking-widest truncate">
               {pathname === '/admin' ? 'Overview' : pathname?.split('/').pop()?.replace('-', ' ')}
             </h1>
           </div>
-          <div className="hidden sm:flex items-center gap-6 text-right">
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</p>
-              <p className="text-xs font-bold text-green-500 uppercase flex items-center justify-end gap-1.5">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Terhubung
-              </p>
-            </div>
+
+          <div className="flex-none w-10 flex justify-end">
+            <button 
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden text-black active:scale-90 p-1"
+            >
+              <Menu size={24} />
+            </button>
           </div>
         </header>
 
-        <main className="p-4 lg:p-6 flex-1 text-black bg-white">
+        <main className="p-4 lg:p-6 flex-1 text-black bg-white pb-28 lg:pb-6">
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-700">
             {children}
           </div>
         </main>
+
+        {/* BOTTOM NAV MOBILE: PUTIH & CLEAN */}
+        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 px-6 flex justify-between items-center z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+          <BottomNavItem href="/admin" icon={<LayoutDashboard size={22} />} label="DASH" active={pathname === '/admin'} />
+          <BottomNavItem href="/admin/pos" icon={<ShoppingCart size={22} />} label="KASIR" active={pathname === '/admin/pos'} />
+          
+          <div className="relative -top-5">
+             <Link href="/admin/produk/tambah" className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center shadow-2xl transition-all">
+                <PlusCircle size={32} />
+             </Link>
+          </div>
+
+          <BottomNavItem href="/admin/pos/laporan-shift" icon={<RefreshCcw size={22} />} label="SHIFT" active={pathname === '/admin/pos/laporan-shift'} />
+          <BottomNavItem href="/admin/profile" icon={<Settings size={22} />} label="Setting" active={pathname === '/admin/profile'} />
+        </nav>
       </div>
     </div>
+  )
+}
+
+function BottomNavItem({ href, icon, label, active }: any) {
+  return (
+    <Link href={href} className={`flex flex-col items-center gap-1 transition-all ${active ? "text-black" : "text-gray-400"}`}>
+      {icon}
+      <span className="text-[8px] font-bold tracking-widest">{label}</span>
+      {active && <div className="w-1 h-1 bg-black rounded-full" />}
+    </Link>
   )
 }
 

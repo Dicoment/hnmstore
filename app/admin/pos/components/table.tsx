@@ -10,7 +10,7 @@ interface TableCustomProps {
 
 export default function TableCustom({ headers, children, loading }: TableCustomProps) {
   return (
-    <div className="w-full bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+    <div className="w-full bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50/50 border-b border-gray-100">

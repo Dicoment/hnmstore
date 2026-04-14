@@ -110,16 +110,7 @@ export default function TambahProdukPage() {
   return (
     <div className="min-h-screen bg-white text-black font-sans w-full pb-32">
       {/* HEADER NAV - RESPONSIVE PADDING */}
-      <div className="w-full bg-white border-b border-gray-100 px-4 lg:px-10 py-6 flex flex-col md:flex-row justify-between items-center sticky top-0 z-40 gap-4">
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-black rounded-xl flex items-center justify-center text-white shadow-xl shrink-0">
-            <PackagePlus size={20} />
-          </div>
-          <div className="space-y-0.5">
-            <h1 className="text-lg lg:text-xl font-bold uppercase tracking-tight leading-none text-black">Tambah Produk</h1>
-            <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Inventori HnM Store</p>
-          </div>
-        </div>
+      <div className="w-full bg-white border-b border-gray-100 px-4 lg:px-10 py-6 flex flex-col md:flex-row justify-between items-center sticky top-10 z-40 gap-4">
         <div className="flex gap-3 w-full md:w-auto text-black">
           <button onClick={() => handleSubmit(true)} disabled={loading} className="flex-1 md:flex-none px-6 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs uppercase tracking-widest active:scale-95 transition-all text-black">DRAFT</button>
           <button onClick={() => handleSubmit(false)} disabled={loading} className="flex-1 md:flex-none px-8 py-3 bg-black text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all">
@@ -128,7 +119,7 @@ export default function TambahProdukPage() {
         </div>
       </div>
 
-      <div className="px-4 lg:px-10 py-8 lg:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
+      <div className="px-2 lg:px-10 py-4 lg:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
         <div className="lg:col-span-8 space-y-6 lg:space-y-10 order-2 lg:order-1">
           
           {/* GALLERY SECTION - RAPI & GRID FIX */}

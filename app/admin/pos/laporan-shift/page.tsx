@@ -110,23 +110,16 @@ setReport({
 
   return (
     <div className="min-h-screen bg-white text-black font-sans w-full overflow-x-hidden pb-20">
-      <div className="border-b border-gray-100 px-4 lg:px-10 py-6 flex items-center justify-between sticky top-0 z-40 bg-white/90 backdrop-blur-md w-full print:hidden">
-        <Link href="/admin/pos" className="flex items-center gap-2 text-gray-400 hover:text-black transition-all">
-          <ArrowLeft size={18} />
-          <span className="text-xs font-bold uppercase tracking-widest text-gray-500">POS Utama</span>
-        </Link>
-        <button onClick={fetchData} className="flex items-center gap-2 bg-black text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest active:scale-95 transition-all shadow-xl">
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Update Data
-        </button>
-      </div>
-
       <div className="w-full px-4 lg:px-10 py-8 lg:py-10 space-y-8 lg:space-y-10" id="report-content-to-print">
         
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 pb-8 border-b border-gray-100">
-          <div className="space-y-2 text-center lg:text-left w-full lg:w-auto">
-            <h1 className="text-3xl lg:text-4xl font-bold uppercase tracking-tighter leading-none">Laporan Shift</h1>
-            <p className="text-[12px] text-gray-400 font-bold uppercase tracking-widest">HnM Store • Daily Kasir Terminal</p>
+          <div className="space-y-2 text-center items-center lg:text-left w-full lg:w-auto">
+            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">HnM Store Data Penjualan Shift</p>
+        <button onClick={fetchData} className="flex w-full text-center gap-2 bg-black text-white px-4 items-center justify-center py-3 rounded-xl text-[10px] font-medium uppercase tracking-widest active:scale-95 transition-all shadow-xl">
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Update Data
+        </button>
           </div>
+
           <div className="bg-gray-50 px-6 py-5 rounded-2xl border border-gray-100 flex flex-col gap-2 w-full lg:w-auto min-w-70">
             <div className="flex items-center justify-center lg:justify-start gap-3 text-black border-b border-gray-200 pb-2">
               <User size={16} className="text-gray-400" />

@@ -126,8 +126,8 @@ export default function ProfilePage() {
   return (
     <div className="p-4 md:p-10 max-w-6xl mx-auto space-y-10 font-sans text-black bg-white">
       <div className="border-b-4 border-black pb-6">
-        <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">Pengaturan Profil</h1>
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">Kelola identitas dan keamanan akun admin</p>
+        <h1 className="lg:text-4xl text-2xl font-medium text-gray-900 tracking-tighter uppercase  ">Pengaturan Profil</h1>
+        <p className="text-[10px] font-medium text-gray-400 tracking-widest mt-2">Kelola identitas dan keamanan akun admin</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
