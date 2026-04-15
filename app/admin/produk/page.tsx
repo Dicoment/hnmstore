@@ -213,7 +213,7 @@ export default function InventoryHnMStore() {
 
   return (
     <div className="min-h-screen bg-white text-black font-sans w-full pb-20 lg:pb-0">
-      <div className="border-b border-gray-100 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between sticky top-0 z-40 bg-white w-full gap-4">
+      <div className="border-b border-gray-100 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between sticky top-10 z-40 bg-white w-full gap-4">
         <div className="space-y-1 text-center md:text-left">
           <h1 className="text-xl lg:text-2xl font-bold uppercase tracking-tight text-black leading-none">Katalog Produk</h1>
           <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">Inventori Produk HnM Store</p>
@@ -407,7 +407,7 @@ export default function InventoryHnMStore() {
             <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black">
               <div className="space-y-1">
                 <h2 className="text-xl lg:text-2xl font-bold uppercase tracking-tight">Editor Produk</h2>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update Data Gudang</p>
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Update Data Produk di Gudang</p>
               </div>
               <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 rounded-xl hover:bg-red-500 hover:text-white transition-all text-black"><X size={24} /></button>
             </div>
@@ -440,7 +440,7 @@ export default function InventoryHnMStore() {
                   <input type="text" value={selectedProduct.name} onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})} className="w-full outline-none font-bold text-xl uppercase tracking-tighter bg-transparent text-black" />
                 </div>
                 
-                {/* DESKRIPSI PRODUK (TETAP ADA) */}
+                {/* DESKRIPSI PRODUK */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
                   <textarea 
@@ -480,7 +480,7 @@ export default function InventoryHnMStore() {
               </div>
             </div>
 
-            <div className="p-6 lg:p-8 bg-white border-t border-gray-100 sticky bottom-0 text-black font-bold">
+            <div className="p-6 lg:p-8 bg-white border-t border-gray-100 sticky bottom-15 text-black font-bold">
               <button type="submit" onClick={handleFullUpdate} disabled={isSaving} className="w-full py-5 bg-black rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all text-white">
                 {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Update Item Katalog
               </button>
@@ -498,7 +498,7 @@ export default function InventoryHnMStore() {
     />
 
     {/* Modal Container - Fixed rounded-4xl */}
-    <div className="relative bg-white w-full max-w-6xl rounded-4xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl">
+    <div className="relative bg-white w-full max-w-6xl rounded-2xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl">
       
       {/* Header */}
       <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white z-20">
@@ -516,14 +516,14 @@ export default function InventoryHnMStore() {
 
       {/* Grid Content */}
       <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50">
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 lg:gap-6">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 lg:gap-6">
           {existingImages.map((file: any, i) => {
             const isSelected = selectedProduct?.images.includes(file.name);
             
             return (
               <div 
                 key={i} 
-                className={`relative aspect-square rounded-3xl overflow-hidden cursor-pointer border-4 transition-all duration-300 group shadow-sm ${
+                className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-4 transition-all duration-300 group shadow-sm ${
                   isSelected ? 'border-black scale-[0.96] shadow-xl' : 'border-white hover:border-gray-200'
                 }`}
                 onClick={() => {

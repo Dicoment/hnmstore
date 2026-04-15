@@ -113,25 +113,18 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-white text-black font-sans relative">
       <div className="max-w-7xl mx-auto p-5 lg:p-12 pb-32 lg:pb-12">
-        
-        {/* HEADER */}
-        <div className="flex flex-col gap-4 mb-8">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 font-bold uppercase text-xs">
-            <ArrowLeft size={18}/> Kembali
-          </button>
-          <h1 className="text-3xl lg:text-4xl font-bold uppercase tracking-tighter">Checkout</h1>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 text-center gap-10">
+          <h1 className='lg:text-4xl text-3xl font-bold text-gray-800'>Halaman Checkout</h1>
           {/* FORM INPUT */}
           <div className="lg:col-span-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">Nama Seller</label>
+                <label className="text-xs font-bold uppercase text-gray-700 tracking-widest">Nama Seller</label>
                 <input type="text" value={customerName} onChange={(e)=>setCustomerName(e.target.value)} placeholder="NAMA..." className="w-full px-5 py-4 bg-gray-50 rounded-2xl text-sm font-bold outline-none border-none shadow-sm"/>
               </div>
               <div className="space-y-3">
-                <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">WhatsApp</label>
+                <label className="text-xs font-bold uppercase text-gray-700 tracking-widest">WhatsApp</label>
                 <input type="text" value={whatsapp} onChange={(e)=>setWhatsapp(e.target.value)} placeholder="6281..." className="w-full px-5 py-4 bg-gray-50 rounded-2xl text-sm font-bold outline-none border-none shadow-sm"/>
               </div>
             </div>
