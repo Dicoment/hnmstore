@@ -206,7 +206,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* MOBILE FOOTER */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-50 lg:hidden shadow-[0_-8px_30px_rgb(0,0,0,0.08)]">
+      <div className="fixed bottom-15 left-0 right-0 bg-white border-t border-gray-100 px-4 py-8 z-50 lg:hidden shadow-[0_-8px_30px_rgb(0,0,0,0.08)]">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Akhir</span>

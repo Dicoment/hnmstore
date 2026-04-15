@@ -72,7 +72,7 @@ export default function AdminLayout({
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-white text-black">
         <RefreshCcw className="animate-spin mb-4" size={32} />
-        <p className="text-[10px] font-bold uppercase tracking-[0.4em]">Dashboard Loading...</p>
+        <p className="text-[10px] font-medium uppercase tracking-[0.4em]">Dashboard Loading...</p>
       </div>
     )
   }
@@ -101,7 +101,7 @@ export default function AdminLayout({
           <div className="flex items-center justify-between">
              {(!collapsed || mobileOpen) && (
               <div className="flex items-center gap-2 animate-in fade-in duration-500">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-xs uppercase">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 text-white font-medium text-xs uppercase">
                   HnM
                 </div>
                 <span className="font-black tracking-tighter text-gray-900 uppercase truncate">Store</span>
@@ -122,7 +122,7 @@ export default function AdminLayout({
               className="flex items-center gap-3 px-3 py-2.5 bg-zinc-50 hover:bg-zinc-900 hover:text-white rounded-xl transition-all group border border-zinc-100"
             >
               <Globe size={16} className="text-zinc-400 group-hover:text-white transition-colors" />
-              <span className="text-[10px] font-bold uppercase tracking-widest truncate">Visit Website</span>
+              <span className="text-[10px] font-medium uppercase tracking-widest truncate">Visit Website</span>
             </Link>
           ) : (
              <Link 
@@ -168,16 +168,16 @@ export default function AdminLayout({
             {(!collapsed || mobileOpen) && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tighter">{adminName}</p>
-                <p className="text-[11px] font-bold text-gray-400 truncate tracking-tight">{adminEmail}</p>
+                <p className="text-[11px] font-medium text-gray-400 truncate tracking-tight">{adminEmail}</p>
               </div>
             )}
           </div>
           {(!collapsed || mobileOpen) && (
             <div className="grid grid-cols-2 gap-2 mt-4">
-              <Link href="/admin/profile" className="flex items-center justify-center gap-1.5 py-2.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 active:bg-gray-50">
+              <Link href="/admin/profile" className="flex items-center justify-center gap-1.5 py-2.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 active:bg-gray-50">
                 <Settings size={12} /> Profil
               </Link>
-              <button onClick={handleLogout} className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 border border-red-100 rounded-lg text-xs font-bold text-red-600 active:bg-red-100 transition-all">
+              <button onClick={handleLogout} className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 border border-red-100 rounded-lg text-xs font-medium text-red-600 active:bg-red-100 transition-all">
                 <LogOut size={12} /> Keluar
               </button>
             </div>
@@ -196,7 +196,7 @@ export default function AdminLayout({
           </div>
 
           <div className="flex-1 flex justify-center overflow-hidden">
-            <h1 className="font-bold text-gray-900 text-sm lg:text-xl uppercase tracking-widest truncate">
+            <h1 className="font-medium text-gray-900 text-sm lg:text-xl uppercase tracking-widest truncate">
               {pathname === '/admin' ? 'Overview' : pathname?.split('/').pop()?.replace('-', ' ')}
             </h1>
           </div>
@@ -219,7 +219,7 @@ export default function AdminLayout({
 
         {/* BOTTOM NAV MOBILE: PUTIH & CLEAN */}
         <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 px-6 flex justify-between items-center z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-          <BottomNavItem href="/admin" icon={<LayoutDashboard size={22} />} label="DASH" active={pathname === '/admin'} />
+          <BottomNavItem href="/admin"  icon={<LayoutDashboard size={22} />} label="DASH" active={pathname === '/admin'} />
           <BottomNavItem href="/admin/pos" icon={<ShoppingCart size={22} />} label="KASIR" active={pathname === '/admin/pos'} />
           
           <div className="relative -top-5">
@@ -229,7 +229,7 @@ export default function AdminLayout({
           </div>
 
           <BottomNavItem href="/admin/pos/laporan-shift" icon={<RefreshCcw size={22} />} label="SHIFT" active={pathname === '/admin/pos/laporan-shift'} />
-          <BottomNavItem href="/admin/profile" icon={<Settings size={22} />} label="Setting" active={pathname === '/admin/profile'} />
+          <BottomNavItem href="/admin/profile" icon={<Settings size={22} />} label="SETTING" active={pathname === '/admin/profile'} />
         </nav>
       </div>
     </div>
@@ -238,9 +238,9 @@ export default function AdminLayout({
 
 function BottomNavItem({ href, icon, label, active }: any) {
   return (
-    <Link href={href} className={`flex flex-col items-center gap-1 transition-all ${active ? "text-black" : "text-gray-400"}`}>
+    <Link href={href} className={`flex flex-col items-center gap-1 transition-all ${active ? "text-black" : "text-gray-500"}`}>
       {icon}
-      <span className="text-[8px] font-bold tracking-widest">{label}</span>
+      <span className="text-[8px] font-medium tracking-widest">{label}</span>
       {active && <div className="w-1 h-1 bg-black rounded-full" />}
     </Link>
   )
@@ -248,7 +248,7 @@ function BottomNavItem({ href, icon, label, active }: any) {
 
 function SidebarLabel({ label, collapsed, mobileOpen }: { label: string, collapsed: boolean, mobileOpen: boolean }) {
   if (collapsed && !mobileOpen) return <div className="border-t border-gray-100 my-4 mx-auto w-10" />
-  return <p className="pt-6 pb-2 px-3 text-xs font-bold uppercase tracking-[2px] text-gray-400">{label}</p>
+  return <p className="pt-6 pb-2 px-3 text-xs font-medium uppercase tracking-[2px] text-gray-400">{label}</p>
 }
 
 function SidebarItem({ href, icon, label, collapsed, mobileOpen, active }: any) {
@@ -262,7 +262,7 @@ function SidebarItem({ href, icon, label, collapsed, mobileOpen, active }: any) 
       `}
     >
       <span className={`${active ? "text-white" : "text-gray-400 group-hover:text-gray-900"} shrink-0`}>{icon}</span>
-      {(!collapsed || mobileOpen) && <span className="text-[13px] font-bold uppercase tracking-tight truncate">{label}</span>}
+      {(!collapsed || mobileOpen) && <span className="text-[13px] font-medium uppercase tracking-tight truncate">{label}</span>}
       {(!collapsed || mobileOpen) && active && <ChevronRight size={14} className="ml-auto opacity-50 shrink-0" />}
     </Link>
   )

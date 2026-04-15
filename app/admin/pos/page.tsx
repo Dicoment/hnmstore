@@ -131,10 +131,10 @@ export default function POSPage() {
 
         {/* FLOATING CART BUTTON (MOBILE ONLY) */}
         {!isSidebarOpen && cart.length > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 z-50 w-full">
+          <div className="lg:hidden fixed bottom-15 left-1/2 -translate-x-1/2 z-50 w-full">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="w-full bg-black text-white p-5 shadow-2xl flex items-center justify-between"
+              className="w-full bg-black text-white  p-5 shadow-2xl flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <ShoppingCart size={20}/>
