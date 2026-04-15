@@ -106,14 +106,7 @@ export default function StokHnMStore() {
     <div className="min-h-screen bg-white text-black font-sans w-full overflow-x-hidden">
       {/* HEADER NAV - RESPONSIVE PADDING */}
       <div className="border-b border-gray-100 px-4 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between sticky top-0 z-50 bg-white/90 backdrop-blur-md w-full gap-4">
-        <div className="space-y-1 text-center md:text-left">
-          <Link href="/admin" className="text-[10px] font-bold uppercase text-gray-400 hover:text-black flex items-center justify-center md:justify-start gap-2 tracking-widest transition-all mb-1">
-            <ArrowLeft size={12}/> Dashboard
-          </Link>
-          <h1 className="text-xl lg:text-2xl font-bold uppercase tracking-tight flex items-center justify-center md:justify-start gap-3">
-            <Boxes size={24} /> Management Stok
-          </h1>
-        </div>
+        
         <button 
           onClick={saveAllStok}
           disabled={isSaving}
@@ -141,7 +134,7 @@ export default function StokHnMStore() {
             <div key={p.id} className="flex flex-col md:flex-row gap-4 lg:gap-8 bg-white border border-gray-100 p-4 lg:p-8 rounded-2xl hover:border-black transition-all group shadow-sm">
               {/* IMAGE WRAPPER */}
               <div className="w-full md:w-32 lg:w-40 aspect-square relative rounded-xl overflow-hidden border border-gray-100 shrink-0 bg-gray-50">
-                <Image src={p.images?.[0] ? `/uploads/${p.images[0]}` : '/placeholder.png'} alt={p.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" unoptimized />
+                <Image src={p.images?.[0] ? `/uploads/${p.images[0]}` : '/placeholder.png'} alt={p.name} fill className="object-cover group-hover:scale-102 transition-transform duration-500" unoptimized />
               </div>
 
               {/* CONTENT WRAPPER */}

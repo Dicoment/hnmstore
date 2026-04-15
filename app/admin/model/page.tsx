@@ -126,7 +126,6 @@ export default function AdminModelPage() {
 
   return (
     <div className="flex flex-col h-screen lg:h-[calc(100vh-140px)] font-sans text-black">
-      <div className="flex flex-col flex-1 bg-white border border-gray-200 overflow-hidden lg:rounded-xl lg:mx-4 lg:my-2 shadow-sm">
         
         {/* HEADER */}
         <div className="p-4 lg:p-6 border-b border-gray-100 bg-white sticky top-0 z-30 space-y-4">
@@ -136,7 +135,7 @@ export default function AdminModelPage() {
                 <Shapes size={20} /> Model Manager
               </h1>
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                Total: <span className="text-black">{model.length} Model</span> • VPS DB
+                Total: <span className="text-black">{model.length} Model</span> 
               </p>
             </div>
 
@@ -243,7 +242,6 @@ export default function AdminModelPage() {
             </div>
           )}
         </div>
-      </div>
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { 
-  ArrowLeft, Printer, X, Loader2, ChevronLeft, ChevronRight, Wallet, Eye, ShoppingBag, User, Search
+ Printer, ChevronLeft, ChevronRight, Wallet, Eye, Search
 } from 'lucide-react'
-import Link from 'next/link'
-import Image from 'next/image'
 import TableCustom from '../components/table'
 import ModalDetailOrder from '@/components/modaldetailorder'
 
@@ -16,7 +14,7 @@ export default function LaporanPenjualanPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
+  // const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [selectedTx, setSelectedTx] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -92,12 +90,6 @@ export default function LaporanPenjualanPage() {
     <div className="bg-white min-h-screen text-black font-sans pb-24">
       <div className="p-4 lg:p-10 border-b border-gray-100 bg-gray-50/30">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
-          <div className="space-y-1">
-            <Link href="/admin/pos" className="flex items-center gap-2 text-gray-400 hover:text-black text-xs font-bold uppercase mb-1 tracking-widest transition-all">
-              <ArrowLeft size={16}/> Back to POS
-            </Link>
-            <h1 className="text-xl lg:text-3xl font-bold uppercase tracking-tighter leading-none">Laporan Keuangan</h1>
-          </div>
           <button onClick={() => window.print()} className="w-full lg:w-auto bg-black text-white px-8 py-4 rounded-xl font-bold text-xs uppercase shadow-xl flex items-center justify-center gap-4 active:scale-95 print:hidden">
             <Printer size={18} /> Cetak Laporan
           </button>
@@ -175,7 +167,7 @@ export default function LaporanPenjualanPage() {
                   Rp {Number(item.total || 0).toLocaleString()}
                 </td>
                 <td className="p-6 text-right">
-                  <button onClick={() => setSelectedTransaction(item)} className="p-4 bg-gray-50 rounded-2xl hover:bg-black hover:text-white shadow-sm">
+                  <button onClick={() => {setSelectedTx(item); setShowDetail(true)}} className="p-4 bg-gray-50 rounded-2xl hover:bg-black hover:text-white shadow-sm">
                     <Eye size={18}/>
                   </button>
                 </td>
@@ -201,7 +193,7 @@ export default function LaporanPenjualanPage() {
                 <div className="text-xs text-gray-400">{new Date(item.created_at).toLocaleDateString('id-ID')}</div>
                 <p className="text-sm tracking-tight text-black">Rp {Number(item.total || 0).toLocaleString()}</p>
               </div>
-              <button onClick={() => setSelectedTransaction(item)} className="w-full py-4 bg-gray-50 text-black rounded-2xl text-xs uppercase flex items-center justify-center gap-2">
+              <button onClick={() =>  { setSelectedTx(item); setShowDetail(true) }}  className="w-full py-4 bg-gray-50 text-black rounded-2xl text-xs uppercase flex items-center justify-center gap-2">
                 <Eye size={16}/> Detail
               </button>
             </div>
@@ -219,11 +211,7 @@ export default function LaporanPenjualanPage() {
       </div>
 
       {/* MODAL DETAIL */}
-<ModalDetailOrder 
-  show={showDetail} 
-  onClose={() => setShowDetail(false)} 
-  selectedTx={selectedTx} 
-/>
+<ModalDetailOrder show={showDetail} onClose={() => setShowDetail(false)} selectedTx={selectedTx} />
     </div>
   )
 }

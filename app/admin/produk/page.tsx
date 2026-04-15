@@ -215,8 +215,7 @@ export default function InventoryHnMStore() {
     <div className="min-h-screen bg-white text-black font-sans w-full pb-20 lg:pb-0">
       <div className="border-b border-gray-100 lg:px-10 py-6 flex flex-col md:flex-row items-center justify-between sticky top-10 z-40 bg-white w-full gap-4">
         <div className="space-y-1 text-center md:text-left">
-          <h1 className="text-xl lg:text-2xl font-bold uppercase tracking-tight text-black leading-none">Katalog Produk</h1>
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">Inventori Produk HnM Store</p>
+          <p className="text-md text-gray-700 font-medium uppercase tracking-widest mt-1">Inventori Produk HnM Store</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           {selectedIds.length > 0 && (

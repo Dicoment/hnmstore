@@ -116,9 +116,6 @@ export default function RiwayatTransaksiPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1">
-          <Link href="/admin/pos" className="flex items-center gap-2 text-gray-400 hover:text-black transition-all mb-1">
-            <ArrowLeft size={16} /> <span className="text-xs uppercase">Back to POS</span>
-          </Link>
           <h1 className="text-2xl lg:text-3xl font-bold uppercase tracking-tighter leading-none">Riwayat Penjualan</h1>
         </div>
         <div className="relative w-full md:w-80">

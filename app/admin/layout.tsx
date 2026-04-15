@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Tags, Shapes, PanelLeft, PlusCircle, Package, 
   ShoppingCart, Settings, LogOut, User, ImageIcon, Users, 
   MessageSquare, ChevronRight, Boxes, FileBarChart, Menu, 
-  X as CloseIcon, RefreshCcw, History, Globe, ArrowLeft
+  X as CloseIcon, RefreshCcw, History, Globe, ArrowLeft,
+  LayoutGrid
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
@@ -228,7 +229,7 @@ export default function AdminLayout({
              </Link>
           </div>
 
-          <BottomNavItem href="/admin/pos/laporan-shift" icon={<RefreshCcw size={22} />} label="SHIFT" active={pathname === '/admin/pos/laporan-shift'} />
+          <BottomNavItem href="/admin/menu" icon={<LayoutGrid size={22} />} label="MENU" active={pathname === '/admin/menu'} />
           <BottomNavItem href="/admin/profile" icon={<Settings size={22} />} label="SETTING" active={pathname === '/admin/profile'} />
         </nav>
       </div>

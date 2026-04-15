@@ -89,7 +89,6 @@ export default function AdminBrandPage() {
 
   return (
     <div className="p-4 font-sans text-black min-h-screen w-full overflow-x-hidden">
-      <div className="w-full bg-white border border-zinc-100 rounded-xl overflow-hidden shadow-sm">
         
         {/* HEADER SECTION */}
         <div className="p-6 border-b border-zinc-50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
@@ -145,7 +144,6 @@ export default function AdminBrandPage() {
             </tbody>
           </table>
         </div>
-      </div>
 
       {/* MODAL MEDIA - FIX MOBILE STACKING */}
       {isMediaOpen && (
