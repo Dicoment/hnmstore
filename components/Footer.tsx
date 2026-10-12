@@ -91,10 +91,28 @@ export default function Footer() {
             © 2026 HnM Store. All Rights Reserved.
           </p>
           
-          <a href="https://dicoment.com" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-white transition-all">
-            Developed by <span className="text-white underline underline-offset-8 decoration-zinc-800 group-hover:decoration-white transition-all">Dicoment Agency</span>
-            <ExternalLink size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-          </a>
+          
+<div className="flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-500">
+  <a
+    href="https://dicoment.com/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="hover:text-white transition-all"
+  >
+    Jasa Website Toko Online
+  </a>
+  <span>By</span>
+  <a
+    href="https://dicoment.com/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-white underline underline-offset-8 decoration-zinc-800 hover:decoration-white transition-all"
+  >
+    Dicoment Agency
+  </a>
+  <ExternalLink size={12} />
+</div>
+
         </div>
       </div>
     </footer>
