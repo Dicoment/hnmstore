@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import ProductDetailClient from './ProdukDetail'
+import { getProductMeta } from '@/lib/shop-server'
 
 // Memaksa halaman untuk selalu mengambil data segar dari VPS (Anti 404/Cache)
 export const dynamic = 'force-dynamic'
@@ -15,19 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const VPS_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://103.197.189.71:3000'
 
   try {
-    const res = await fetch(`${VPS_URL}/api/vps-db`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        // Nama tabel "Product" case-sensitive sesuai database lu
-        sql: 'SELECT name, images, price_regular FROM public."Product" WHERE slug = $1 LIMIT 1', 
-        params: [slug] 
-      }),
-      next: { revalidate: 0 } 
-    })
-
-    const result = await res.json()
-    const product = result.data?.[0]
+    // Langsung ke database dari server (tanpa lewat HTTP)
+    const product = await getProductMeta(slug)
 
     if (!product) return { title: 'Product Not Found | HnM Store' }
 

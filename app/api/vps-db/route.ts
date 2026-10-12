@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
     const { sql, params } = await req.json()
 
     if (!sql) {
-      return NextResponse.json({ error: 'Query SQL kosong!' }, { status: 400 })
+      return NextResponse.json({ data: [], error: 'Query SQL kosong!' }, { status: 400 })
     }
 
-    const result = await pool.query(sql, params || [])
+    const result = await pool.query(sql, Array.isArray(params) ? params : [])
 
     return NextResponse.json({
       data: result.rows,
@@ -39,9 +39,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: any) {
     console.error('❌ VPS DB Error:', err.message)
-    return NextResponse.json({
-      data: [],
-      error: err.message
-    }, { status: 500 })
+    return NextResponse.json({ data: [], error: err.message }, { status: 500 })
   }
 }

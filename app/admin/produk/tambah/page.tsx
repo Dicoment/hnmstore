@@ -8,6 +8,7 @@ import {
 import MediaLibraryModal from '@/components/admin/MediaLibraryModal'
 import { uploadImage } from '@/lib/upload'
 import ProductTypeSelect from '@/components/admin/ProductTypeSelect'
+import DescriptionEditor from '@/components/admin/DescriptionEditor'
 import { DEFAULT_PRODUCT_TYPE, sortSizes } from '@/lib/product-types'
 
 interface Brand { id: string; name: string }
@@ -186,7 +187,7 @@ export default function TambahProdukPage() {
             </div>
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-widest text-black">Full Description</label>
-              <textarea rows={6} placeholder="Describe product details..." value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 outline-none font-bold text-[12px] text-black resize-none focus:ring-1 focus:ring-black transition-all" />
+              <DescriptionEditor value={description} onChange={setDescription} />
             </div>
           </div>
         </div>

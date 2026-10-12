@@ -38,19 +38,7 @@ function HomeContent() {
     async function fetchHomeData() {
       try {
         setLoading(true)
-        const sql = `
-          SELECT 
-            p.id, p.name, p.slug, p.price_regular, p.price_promo, p.images, b.name as "brandName", b.slug as "brandSlug",
-            (SELECT json_agg(json_build_object('size', s.value) ORDER BY CASE s.value WHEN 'S' THEN 1 WHEN 'M' THEN 2 WHEN 'L' THEN 3 WHEN 'XL' THEN 4 WHEN 'XXL' THEN 5 ELSE 0 END, s.value)
-             FROM public."ProductSizeStock" pss 
-             JOIN public."Size" s ON s.id = pss."sizeId" 
-             WHERE pss."productId" = p.id AND pss.stock > 0) as "available_sizes"
-          FROM public."Product" p
-          LEFT JOIN public."Brand" b ON p."brandId" = b.id
-          WHERE p.draft = false
-          ORDER BY p."createdAt" DESC
-        `
-        const res = await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql }) })
+        const res = await fetch('/api/shop/home')
         const result = await res.json()
         
         // ProductCard membaca daftar ukuran dari field "sizes"

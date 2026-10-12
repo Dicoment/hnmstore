@@ -24,24 +24,7 @@ export default function NewArrivalPage() {
     async function fetchNewArrivals() {
       try {
         setLoading(true)
-        const sql = `
-          SELECT 
-            p.id, p.name, p.slug, p.price_regular, p.images as "productImages", 
-            p."createdAt", b.name as "brandName",
-            (SELECT json_agg(json_build_object('size', s.value))
-             FROM public."ProductSizeStock" pss 
-             JOIN public."Size" s ON s.id = pss."sizeId" 
-             WHERE pss."productId" = p.id AND pss.stock > 0) as "available_sizes"
-          FROM public."Product" p
-          LEFT JOIN public."Brand" b ON p."brandId" = b.id
-          WHERE p.draft = false
-          ORDER BY p."createdAt" DESC
-          LIMIT 24
-        `
-        const res = await fetch('/api/vps-db', { 
-          method: 'POST', 
-          body: JSON.stringify({ sql }) 
-        })
+        const res = await fetch('/api/shop/new-arrivals')
         const result = await res.json()
         setProducts(result.data || [])
       } catch (err) {

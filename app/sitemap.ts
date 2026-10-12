@@ -1,21 +1,16 @@
 import { MetadataRoute } from 'next'
+import { getSitemapProducts } from '@/lib/shop-server'
+
+// Dibuat saat diminta (bukan saat build), datanya di-cache 1 jam di server
+export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://hnmstore.id'
 
-  // 1. Ambil data produk dari database VPS lu
-  let products = []
+  // 1. Ambil data produk langsung dari database
+  let products: { slug: string; modified: string | null }[] = []
   try {
-    const res = await fetch(`${baseUrl}/api/vps-db`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        sql: 'SELECT slug, updated_at FROM public."Product" ORDER BY updated_at DESC' 
-      }),
-      next: { revalidate: 3600 } // Refresh data tiap 1 jam
-    })
-    const result = await res.json()
-    products = result.data || []
+    products = await getSitemapProducts()
   } catch (error) {
     console.error("Sitemap fetch error:", error)
   }
@@ -29,9 +24,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   // 3. Gabungkan dengan halaman dinamis dari database
-  const productPages = products.map((product: any) => ({
+  const productPages = products.map((product) => ({
     url: `${baseUrl}/produk/${product.slug}`,
-    lastModified: new Date(product.updated_at || Date.now()),
+    lastModified: new Date(product.modified || Date.now()),
   }))
 
   return [...staticPages, ...productPages]

@@ -9,6 +9,7 @@ import {
   ChevronRight, Zap
 } from 'lucide-react'
 import Link from 'next/link'
+import ProductDescription from '@/components/shop/ProductDescription'
 
 // --- INTERFACES ---
 interface SizeStock {
@@ -49,55 +50,28 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
     try {
       setLoading(true)
       const [res, waRes] = await Promise.all([
-        fetch('/api/vps-db', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            sql: `
-              SELECT p.*, b.name as "brandName", m.name as "modelName",
-              (SELECT json_agg(json_build_object('stock', pss.stock, 'Size', json_build_object('value', s.value)) ORDER BY s.value ASC)
-               FROM public."ProductSizeStock" pss 
-               JOIN public."Size" s ON s.id = pss."sizeId" 
-               WHERE pss."productId" = p.id) as "v_stocks"
-              FROM public."Product" p
-              LEFT JOIN public."Brand" b ON p."brandId" = b.id
-              LEFT JOIN public."Model" m ON p."modelId" = m.id
-              WHERE p.slug = $1 LIMIT 1
-            `, 
-            params: [slug] 
-          })
-        }).then(r => r.json()),
-        fetch('/api/vps-db', {
-          method: 'POST',
-          body: JSON.stringify({ sql: 'SELECT phone_number, template_message FROM public."WhatsAppConfig" LIMIT 1' })
-        }).then(r => r.json())
+        fetch(`/api/shop/product/${encodeURIComponent(slug)}`),
+        fetch('/api/shop/whatsapp')
       ])
 
-      if (res.data?.[0]) {
-        const raw = res.data[0]
-        setProduct({
-          ...raw,
-          Brand: { name: raw.brandName || "N/A" },
-          Model: { name: raw.modelName || "N/A" },
-          ProductSizeStock: raw.v_stocks || []
-        })
-
-        // QUERY RELATED: Tambahkan p.price_promo
-        const relRes = await fetch('/api/vps-db', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            sql: `SELECT p.id, p.name, p.slug, p.images, p.price_regular, p.price_promo, b.name as "brandName",
-                  (SELECT json_agg(json_build_object('size', s.value))
-                   FROM public."ProductSizeStock" pss 
-                   JOIN public."Size" s ON s.id = pss."sizeId" 
-                   WHERE pss."productId" = p.id AND pss.stock > 0) as "available_sizes"
-                  FROM public."Product" p LEFT JOIN public."Brand" b ON p."brandId" = b.id 
-                  WHERE p."brandId" = $1 AND p.id != $2 AND p.draft = false LIMIT 4`,
-            params: [raw.brandId, raw.id]
+      if (res.ok) {
+        const result = await res.json()
+        const raw = result.data?.product
+        if (raw) {
+          setProduct({
+            ...raw,
+            Brand: { name: raw.brandName || "N/A" },
+            Model: { name: raw.modelName || "N/A" },
+            ProductSizeStock: raw.v_stocks || []
           })
-        }).then(r => r.json())
-        if (relRes.data) setRelatedProducts(relRes.data)
+          setRelatedProducts(result.data.related || [])
+        }
       }
-      if (waRes.data?.[0]) setWaConfig(waRes.data[0])
+
+      if (waRes.ok) {
+        const wa = await waRes.json()
+        if (wa.data) setWaConfig(wa.data)
+      }
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }, [slug])
 
@@ -256,9 +230,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ slug
                 <Info size={18} className="text-gray-400" />
                 <h3 className="text-xs uppercase tracking-widest text-gray-400">Deskripsi Produk</h3>
               </div>
-              <div className="text-[14px] md:text-sm text-gray-600 tracking-tight leading-relaxed">
-                {product.description || 'Informasi produk tidak tersedia.'}
-              </div>
+              <ProductDescription text={product.description} />
             </div>
 
 

@@ -12,6 +12,7 @@ import MediaLibraryModal from '@/components/admin/MediaLibraryModal'
 import { uploadImage } from '@/lib/upload'
 import Pagination from '@/components/shop/Pagination'
 import ProductTypeSelect from '@/components/admin/ProductTypeSelect'
+import DescriptionEditor from '@/components/admin/DescriptionEditor'
 import { PRODUCT_TYPES, sortSizes } from '@/lib/product-types'
 
 // --- DEFINISI INTERFACE ---
@@ -438,11 +439,9 @@ export default function InventoryHnMStore() {
                 {/* DESKRIPSI PRODUK */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
-                  <textarea 
-                    value={selectedProduct.description || ''} 
-                    onChange={(e) => setSelectedProduct({...selectedProduct, description: e.target.value})} 
-                    className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-1 focus:ring-black text-[13px] font-bold transition-all text-black leading-relaxed"
-                    placeholder="Tulis detail bahan, kualitas, dll..."
+                  <DescriptionEditor
+                    value={selectedProduct.description || ''}
+                    onChange={(v) => setSelectedProduct({...selectedProduct, description: v})}
                   />
                 </div>
                 

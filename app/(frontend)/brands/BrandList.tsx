@@ -19,11 +19,7 @@ export function BrandsList() {
     async function fetchBrands() {
       try {
         setLoading(true)
-        const sql = `SELECT * FROM public."Brand" ORDER BY name ASC`
-        const res = await fetch('/api/vps-db', { 
-          method: 'POST', 
-          body: JSON.stringify({ sql }) 
-        })
+        const res = await fetch('/api/shop/brands')
         const result = await res.json()
         setBrands(result.data || [])
       } catch (err) {

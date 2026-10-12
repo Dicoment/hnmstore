@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { Loader2, Filter, ChevronDown } from 'lucide-react'
-import { queryDb } from '@/lib/shop-db'
 import ProductCard, { type ShopProduct } from '@/components/shop/ProductCard'
 import FilterSidebar, { type FilterOption } from '@/components/shop/FilterSidebar'
 import Pagination from '@/components/shop/Pagination'
@@ -12,19 +11,14 @@ import { isProductType, typeLabel } from '@/lib/product-types'
 
 const ITEMS_PER_PAGE = 12
 
+// Urutan SQL-nya sekarang ada di server (lib/shop-server.ts); di sini cukup nilai dan label
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Terbaru', sql: `p."createdAt" DESC` },
-  { value: 'name-az', label: 'Nama A-Z', sql: `p.name ASC` },
-  { value: 'name-za', label: 'Nama Z-A', sql: `p.name DESC` },
-  { value: 'price-low', label: 'Harga Termurah', sql: `p.price_regular ASC` },
-  { value: 'price-high', label: 'Harga Termahal', sql: `p.price_regular DESC` },
+  { value: 'newest', label: 'Terbaru' },
+  { value: 'name-az', label: 'Nama A-Z' },
+  { value: 'name-za', label: 'Nama Z-A' },
+  { value: 'price-low', label: 'Harga Termurah' },
+  { value: 'price-high', label: 'Harga Termahal' },
 ]
-
-// Produk promo selalu di atas, apa pun urutan yang dipilih
-const PROMO_FIRST = `CASE WHEN p.price_promo IS NOT NULL AND p.price_promo > 0 THEN 0 ELSE 1 END`
-
-// Ukuran: angka (sepatu) dulu, lalu baju S < M < L < XL < XXL
-const SIZE_ORDER = `CASE s.value WHEN 'S' THEN 1 WHEN 'M' THEN 2 WHEN 'L' THEN 3 WHEN 'XL' THEN 4 WHEN 'XXL' THEN 5 ELSE 0 END, s.value`
 
 function ShopContent() {
   const searchParams = useSearchParams()
@@ -64,19 +58,16 @@ function ShopContent() {
 
   // Daftar brand & kategori mengikuti jenis produk yang dipilih; yang belum punya produk disembunyikan
   useEffect(() => {
-    const params: string[] = []
-    let typeFilter = ''
-    if (tipe !== 'all') { params.push(tipe); typeFilter = ' AND p.type = $1' }
-
-    const listSql = (table: 'Brand' | 'Model', fk: 'brandId' | 'modelId') => `
-      SELECT DISTINCT x.id, x.name, x.slug
-      FROM public."${table}" x
-      JOIN public."Product" p ON p."${fk}" = x.id
-      WHERE p.draft = false${typeFilter}
-      ORDER BY x.name ASC
-    `
-    queryDb<FilterOption>(listSql('Brand', 'brandId'), params).then(setBrands).catch(console.error)
-    queryDb<FilterOption>(listSql('Model', 'modelId'), params).then(setModels).catch(console.error)
+    let cancelled = false
+    fetch(`/api/shop/filters?tipe=${encodeURIComponent(tipe)}`)
+      .then((r) => r.json())
+      .then((res) => {
+        if (cancelled) return
+        setBrands(res.data?.brands || [])
+        setModels(res.data?.models || [])
+      })
+      .catch(console.error)
+    return () => { cancelled = true }
   }, [tipe])
 
   // Link lama berisi UUID (?brand=076245a4-...) dirapikan otomatis jadi slug
@@ -91,49 +82,18 @@ function ShopContent() {
     async function load() {
       setLoading(true)
       try {
-        const params: string[] = []
-        const where = ['p.draft = false']
-
-        // slug atau UUID lama; nilai dikirim sebagai parameter, bukan disambung ke SQL
-        if (brand !== 'all') {
-          params.push(brand)
-          const n = params.length
-          where.push(`p."brandId" = (SELECT id FROM public."Brand" WHERE slug = $${n} OR id::text = $${n} LIMIT 1)`)
-        }
-        if (model !== 'all') {
-          params.push(model)
-          const n = params.length
-          where.push(`p."modelId" = (SELECT id FROM public."Model" WHERE slug = $${n} OR id::text = $${n} LIMIT 1)`)
-        }
-        if (tipe !== 'all') {
-          params.push(tipe)
-          where.push(`p.type = $${params.length}`)
-        }
-
-        const whereSql = `WHERE ${where.join(' AND ')}`
-        const offset = (currentPage - 1) * ITEMS_PER_PAGE
-
-        const productSql = `
-          SELECT p.id, p.name, p.slug, p.price_regular, p.price_promo, p.images, b.name AS "brandName",
-            (SELECT json_agg(s.value ORDER BY ${SIZE_ORDER})
-             FROM public."ProductSizeStock" pss
-             JOIN public."Size" s ON s.id = pss."sizeId"
-             WHERE pss."productId" = p.id AND pss.stock > 0) AS sizes
-          FROM public."Product" p
-          LEFT JOIN public."Brand" b ON p."brandId" = b.id
-          ${whereSql}
-          ORDER BY ${PROMO_FIRST}, ${sort.sql}, p.id ASC
-          LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
-        `
-        const countSql = `SELECT COUNT(*)::int AS count FROM public."Product" p ${whereSql}`
-
-        const [rows, countRows] = await Promise.all([
-          queryDb<ShopProduct>(productSql, params),
-          queryDb<{ count: number }>(countSql, params),
-        ])
+        const qs = new URLSearchParams({
+          brand,
+          model,
+          tipe,
+          sort: sort.value,
+          page: String(currentPage),
+        })
+        const res = await fetch(`/api/shop/products?${qs.toString()}`)
+        const result = await res.json()
         if (cancelled) return
-        setProducts(rows)
-        setTotalItems(Number(countRows[0]?.count ?? 0))
+        setProducts(result.data || [])
+        setTotalItems(Number(result.total ?? 0))
       } catch (err) {
         console.error(err)
         if (!cancelled) setProducts([])
@@ -147,7 +107,7 @@ function ShopContent() {
 
     load()
     return () => { cancelled = true }
-  }, [brand, model, tipe, sort.value, currentPage]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [brand, model, tipe, sort.value, currentPage])
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE)
 

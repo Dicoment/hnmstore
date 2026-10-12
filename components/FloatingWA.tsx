@@ -10,12 +10,9 @@ export default function FloatingWA() {
   useEffect(() => {
     async function fetchWAConfig() {
       try {
-        const res = await fetch('/api/vps-db', {
-          method: 'POST',
-          body: JSON.stringify({ sql: 'SELECT * FROM public."WhatsAppConfig" WHERE is_active = true LIMIT 1' })
-        })
+        const res = await fetch('/api/shop/whatsapp')
         const result = await res.json()
-        if (result.data?.length > 0) setConfig(result.data[0])
+        if (result.data) setConfig(result.data)
       } catch (err) {
         console.error("WA Button Error:", err)
       }
