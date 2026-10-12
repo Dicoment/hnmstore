@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { jwtVerify } from 'jose' 
+import { jwtVerify } from 'jose'
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
@@ -25,20 +25,27 @@ export async function middleware(request: NextRequest) {
 
   // 4. Proteksi Role (Laporan & Tim) menggunakan JWT
   if (token && isAdminPage) {
+    const jwtSecret = process.env.JWT_SECRET
+
+    // Tanpa fallback: kalau env belum diset, berhenti dengan pesan jelas
+    if (!jwtSecret) {
+      console.error('JWT_SECRET belum diset di environment')
+      return new NextResponse('Konfigurasi server belum lengkap', { status: 500 })
+    }
+
     try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia_dicoment_agency')
+      const secret = new TextEncoder().encode(jwtSecret)
       const { payload } = await jwtVerify(token, secret)
       const userRole = (payload.role as string)?.toUpperCase()
 
       const restrictedPaths = ['/admin/tim', '/admin/pos/laporan-penjualan', '/admin/laporan']
       const isRestricted = restrictedPaths.some(p => path.startsWith(p))
 
-      // Cek role SUPERADMIN atau OWNER (sesuaikan dengan isi database VPS lu)
       if (isRestricted && userRole !== 'OWNER' && userRole !== 'SUPERADMIN' && userRole !== 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL('/admin/unauthorized', request.url))
       }
     } catch (err) {
-      // Jika token expired atau invalid, paksa login ulang
+      // Token expired atau invalid, paksa login ulang
       const res = NextResponse.redirect(new URL('/login', request.url))
       res.cookies.delete('session-token')
       return res

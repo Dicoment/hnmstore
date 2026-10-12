@@ -4,6 +4,30 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, LayoutGrid, Loader2, Quote, ShieldCheck, ChevronLeft, ChevronRight, Truck, Zap, Info } from 'lucide-react'
+import ProductCard from '@/components/shop/ProductCard'
+
+function CategoryTile({ href, image, title, subtitle, alignRight = false }: {
+  href: string; image: string; title: string; subtitle: string; alignRight?: boolean
+}) {
+  return (
+    <Link href={href} className="relative group overflow-hidden bg-zinc-900">
+      <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
+      {/* kalau gambarnya belum ada, kotak tetap tampil dengan latar gelap */}
+      <Image
+        src={image}
+        alt={title}
+        fill
+        className="object-cover transition-all duration-1000 group-hover:scale-110"
+        unoptimized
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+      />
+      <div className={`relative z-20 h-full flex flex-col justify-end p-12 ${alignRight ? 'text-right items-end' : ''}`}>
+        <h3 className="text-white text-4xl font-bold uppercase tracking-tighter">{title}</h3>
+        <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">{subtitle}</p>
+      </div>
+    </Link>
+  )
+}
 
 function HomeContent() {
   const [dataByBrand, setDataByBrand] = useState<any[]>([])
@@ -16,8 +40,8 @@ function HomeContent() {
         setLoading(true)
         const sql = `
           SELECT 
-            p.id, p.name, p.slug, p.price_regular, p.price_promo, p.images, b.name as "brandName",
-            (SELECT json_agg(json_build_object('size', s.value))
+            p.id, p.name, p.slug, p.price_regular, p.price_promo, p.images, b.name as "brandName", b.slug as "brandSlug",
+            (SELECT json_agg(json_build_object('size', s.value) ORDER BY CASE s.value WHEN 'S' THEN 1 WHEN 'M' THEN 2 WHEN 'L' THEN 3 WHEN 'XL' THEN 4 WHEN 'XXL' THEN 5 ELSE 0 END, s.value)
              FROM public."ProductSizeStock" pss 
              JOIN public."Size" s ON s.id = pss."sizeId" 
              WHERE pss."productId" = p.id AND pss.stock > 0) as "available_sizes"
@@ -29,7 +53,9 @@ function HomeContent() {
         const res = await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql }) })
         const result = await res.json()
         
-        const grouped = (result.data || []).reduce((acc: any, curr: any) => {
+        // ProductCard membaca daftar ukuran dari field "sizes"
+        const rows = (result.data || []).map((r: any) => ({ ...r, sizes: (r.available_sizes || []).map((x: any) => x.size) }))
+        const grouped = rows.reduce((acc: any, curr: any) => {
           const brand = curr.brandName || 'Others'
           if (!acc[brand]) acc[brand] = []
           acc[brand].push(curr)
@@ -38,6 +64,7 @@ function HomeContent() {
 
         const sectionArray = Object.keys(grouped).map(brand => ({
           brandName: brand,
+          brandSlug: grouped[brand][0]?.brandSlug,
           products: grouped[brand].slice(0, 4)
         }))
         
@@ -54,36 +81,61 @@ function HomeContent() {
   return (
     <div className="bg-white text-black font-sans overflow-x-hidden">
       
-      {/* 1. HERO SECTION */}
-      <section className="relative h-screen flex items-center justify-center bg-black overflow-hidden">
-        <div className="absolute inset-0 z-10 bg-black/50" />
-        <Image 
-          src="/uploads/hero.png" 
-          alt="HnM Hero" 
-          fill 
-          className="object-cover opacity-70 scale-105 animate-slow-pan"
-          priority
-          unoptimized
-        />
-        
-        <div className="relative z-20 text-center space-y-12 px-6 max-w-6xl">
-          <div className="space-y-6">
-            <p className="text-white/40 text-[10px] font-bold uppercase tracking-[1em] animate-fade-in">
-              HNM STORE JEPARA • AUTHENTIC CURATOR
-            </p>
-            <h1 className="text-6xl md:text-[8rem] font-bold text-white uppercase tracking-tighter leading-[0.8] mix-blend-difference">
-              DEFINING STREET <br /> <span className="text-zinc-600">CULTURE.</span>
-            </h1>
-            <p className="text-white/60 text-[10px] md:text-xs font-bold uppercase tracking-[0.4em] max-w-xl mx-auto leading-relaxed">
-              Elevate your rotation with pure authenticity. Because your style deserves better than 'almost real'.
-            </p>
-          </div>
-          
-          <Link href="/produk" className="inline-flex items-center gap-4 bg-white text-black px-12 py-5 rounded-full font-bold text-[10px] uppercase tracking-[0.3em] hover:bg-zinc-200 transition-all shadow-xl">
-            Browse Collection <ArrowRight size={14} />
-          </Link>
-        </div>
-      </section>
+{/* 1. HERO SECTION */}
+<section className="relative min-h-screen flex items-center justify-center bg-black overflow-hidden">
+  <div className="absolute inset-0 z-10 bg-black/50" />
+
+  <Image
+    src="/uploads/hero.png"
+    alt="Koleksi sepatu original HnM Store Jepara"
+    fill
+    className="object-cover opacity-70 scale-105 animate-slow-pan"
+    priority
+    unoptimized
+  />
+
+  <div className="relative z-20 text-center space-y-10 px-6 py-24 max-w-6xl">
+    <div className="space-y-6">
+      <p className="text-white/70 text-[10px] md:text-xs font-bold uppercase tracking-[0.5em] animate-fade-in">
+        HNM STORE JEPARA • KOLEKSI SEPATU PILIHAN
+      </p>
+
+      <h1 className="text-5xl md:text-[7rem] font-bold text-white uppercase tracking-tighter leading-[0.9]">
+        TEMUKAN <br />
+        <span className="text-zinc-400">SEPATU FAVORITMU.</span>
+      </h1>
+
+      <p className="text-white/80 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+        Jelajahi koleksi sepatu Adidas, Nike, New Balance, ASICS,
+        dan Puma di HnM Store Jepara. Lihat pilihan model, ukuran,
+        harga, dan promo yang tersedia untuk menemukan sepatu
+        yang sesuai dengan gaya kamu.
+      </p>
+    </div>
+
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <Link
+        href="/produk"
+        className="inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-xl w-full sm:w-auto"
+      >
+        Lihat Katalog
+        <ArrowRight size={16} />
+      </Link>
+
+      <Link
+        href="/produk"
+        className="inline-flex items-center justify-center gap-3 border border-white/40 text-white px-10 py-5 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-white/10 transition-all w-full sm:w-auto"
+      >
+        Cari Pilihanmu
+      </Link>
+    </div>
+
+    <p className="text-white/50 text-[10px] md:text-xs tracking-wide">
+      Pilih model • Cek ukuran dan harga • Temukan sepatu favoritmu
+    </p>
+  </div>
+</section>
+
 
       {/* 2. THE STATEMENT + PREMIUM SLIDER */}
       <section className="py-32 bg-white overflow-hidden">
@@ -191,25 +243,29 @@ function HomeContent() {
         </div>
       </section>
 
-      {/* 3. CATEGORY HIGHLIGHTS */}
+      {/* 3. JENIS PRODUK */}
       <section className="grid grid-cols-1 md:grid-cols-2 h-[80vh] md:h-[60vh]">
-        <Link href="/produk" className="relative group overflow-hidden border-r border-white/5">
-          <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
-          <Image src="/uploads/sepatu.webp" alt="Performance" fill className="object-cover transition-all duration-1000 group-hover:scale-110" unoptimized />
-          <div className="relative z-20 h-full flex flex-col justify-end p-12">
-            <h3 className="text-white text-4xl font-bold uppercase tracking-tighter">Performance</h3>
-            <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Built for the court</p>
-          </div>
-        </Link>
-        <Link href="/produk" className="relative group overflow-hidden">
-          <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
-          <Image src="/uploads/nike.webp" alt="Lifestyle" fill className="object-cover transition-all duration-1000 group-hover:scale-110" unoptimized />
-          <div className="relative z-20 h-full flex flex-col justify-end p-12 text-right items-end">
-            <h3 className="text-white text-4xl font-bold uppercase tracking-tighter">Lifestyle</h3>
-            <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.4em] mt-2">Master the streets</p>
-          </div>
-        </Link>
+        <CategoryTile href="/produk?tipe=sepatu" image="/uploads/sepatu.webp" title="Sepatu" subtitle="Lihat koleksi sepatu" />
+        <CategoryTile href="/produk?tipe=baju" image="/uploads/baju.png" title="Baju" subtitle="Lihat koleksi baju" alignRight />
       </section>
+
+      {/* FILTER CEPAT PER BRAND */}
+      {!loading && dataByBrand.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 md:px-6 pt-16 md:pt-24">
+          <p className="text-[10px] font-bold uppercase text-zinc-400 tracking-[0.2em] mb-4">Belanja per brand</p>
+          <div className="flex flex-wrap gap-2">
+            {dataByBrand.map((sec) => (
+              <Link
+                key={sec.brandName}
+                href={sec.brandSlug ? `/produk?brand=${sec.brandSlug}` : '/produk'}
+                className="px-5 py-3 rounded-xl border-2 border-zinc-100 text-[10px] font-bold uppercase tracking-widest hover:border-black transition-all"
+              >
+                {sec.brandName}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 4. DYNAMIC BRAND SECTIONS */}
       <div className="bg-white space-y-24 md:space-y-40 py-24 md:py-32">
@@ -228,62 +284,14 @@ function HomeContent() {
                     {section.brandName.split(' ')[0]} <span className="text-zinc-300">{section.brandName.split(' ')[1] || 'Brand.'}</span>
                   </h2>
                 </div>
-                <Link href={`/produk?brand=${section.brandName}`} className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest bg-zinc-100 px-10 py-5 rounded-full hover:bg-black hover:text-white transition-all">
-                  See Collection <LayoutGrid size={16} />
+                <Link href={section.brandSlug ? `/produk?brand=${section.brandSlug}` : '/produk'} className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest bg-zinc-100 px-10 py-5 rounded-full hover:bg-black hover:text-white transition-all">
+                  Lihat Koleksi <LayoutGrid size={16} />
                 </Link>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12 md:gap-x-8 md:gap-y-16">
                 {section.products.map((p: any) => (
-                  <Link key={p.id} href={`/produk/${p.slug}`} className="group block relative">
-                    <div className="aspect-4/5 relative rounded-xl overflow-hidden bg-zinc-50 border-2 border-zinc-100 transition-all group-hover:border-black group-hover:shadow-[15px_15px_0px_0px_rgba(0,0,0,0.05)]">
-                      <Image 
-                        src={p.images?.[0] ? `/uploads/${p.images[0]}` : '/placeholder.png'} 
-                        alt={p.name} 
-                        fill 
-                        className="object-cover transition-all duration-700 group-hover:scale-110"
-                        unoptimized
-                      />
-                      <div className="absolute top-3 left-3 md:top-4 md:left-4">
-                        <span className="bg-black text-white text-[7px] md:text-[8px] font-bold uppercase px-2 py-1 rounded tracking-widest shadow-lg">
-                          {p.brandName}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 md:mt-6 space-y-2 px-1">
-                      <h3 className="font-bold text-xs md:text-base uppercase tracking-tight truncate group-hover:text-zinc-500 transition-colors">
-                        {p.name}
-                      </h3>
-                      <div className="flex flex-col gap-1 border-t-2 border-zinc-50 pt-2">
-                        {p.price_promo && Number(p.price_promo) > 0 ? (
-                          <>
-                            <p className="font-bold text-red-600 text-sm md:text-lg tracking-tighter leading-none">
-                              RP {(Number(p.price_regular) - Number(p.price_promo)).toLocaleString('id-ID')}
-                            </p>
-                            <p className="text-[10px] text-zinc-400 line-through font-medium">
-                              RP {Number(p.price_regular).toLocaleString('id-ID')}
-                            </p>
-                          </>
-                        ) : (
-                          <p className="font-bold text-black text-sm md:text-lg tracking-tighter leading-none">
-                            RP {Number(p.price_regular || 0).toLocaleString('id-ID')}
-                          </p>
-                        )}
-                        <span className="text-xs font-medium uppercase text-zinc-700 mt-2">Ready Size:</span>
-                        <div className="flex flex-wrap pt-2 gap-1">
-                          {p.available_sizes ? p.available_sizes.slice(0, 10).map((s: any, sIdx: number) => (
-                            <span key={sIdx} className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-200 hover:border-zinc-800 transition-colors uppercase">
-                              {s.size}
-                            </span>
-                          )) : (
-                            <span className="text-[10px] font-bold text-red-400 italic">Out of Stock</span>
-                          )}
-                          {p.available_sizes?.length > 10 && <span className="text-[8px] font-bold text-zinc-400">+{p.available_sizes.length - 10}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+                  <ProductCard key={p.id} product={p} />
                 ))}
               </div>
             </section>

@@ -5,6 +5,10 @@ import Image from "next/image"
 import { 
   Upload, Plus, Trash2, Send, Loader2, X, CheckCircle2, PackagePlus, FolderOpen
 } from "lucide-react"
+import MediaLibraryModal from '@/components/admin/MediaLibraryModal'
+import { uploadImage } from '@/lib/upload'
+import ProductTypeSelect from '@/components/admin/ProductTypeSelect'
+import { DEFAULT_PRODUCT_TYPE, sortSizes } from '@/lib/product-types'
 
 interface Brand { id: string; name: string }
 interface Model { id: string; name: string }
@@ -18,6 +22,7 @@ export default function TambahProdukPage() {
   const [existingImages, setExistingImages] = useState<any[]>([]) 
 
   const [name, setName] = useState('') 
+  const [productType, setProductType] = useState<string>(DEFAULT_PRODUCT_TYPE)
   const [description, setDescription] = useState('')
   const [brandId, setBrandId] = useState('')
   const [modelId, setModelId] = useState('')
@@ -50,11 +55,8 @@ export default function TambahProdukPage() {
     try {
       const uploadedNames: string[] = []; 
       for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.url) uploadedNames.push(data.url.split('/').pop() || "");
+        try { uploadedNames.push(await uploadImage(file, name)); }
+        catch (e: any) { alert(e.message); }
       }
       setImageUrls(prev => [...prev, ...uploadedNames]);
       fetchInitialData();
@@ -88,8 +90,8 @@ export default function TambahProdukPage() {
       const validSizeStocks = sizeStocks.filter(s => s.sizeId && s.stock !== '');
       const combinedQuery = `
         WITH new_product AS (
-          INSERT INTO public."Product" (name, slug, description, "brandId", "modelId", price, price_regular, price_promo, images, draft, "createdAt")
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()) RETURNING id
+          INSERT INTO public."Product" (name, slug, description, "brandId", "modelId", price, price_regular, price_promo, images, draft, type, "createdAt")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $13, NOW()) RETURNING id
         )
         INSERT INTO public."ProductSizeStock" ("productId", "sizeId", stock)
         SELECT (SELECT id FROM new_product), unnest($11::uuid[]), unnest($12::int[]);
@@ -97,7 +99,7 @@ export default function TambahProdukPage() {
       const params = [
         name, finalSlug, description, brandId, modelId, 
         Number(priceRegular), Number(priceRegular), pricePromo ? Number(pricePromo) : null, 
-        imageUrls, draft, validSizeStocks.map(s => s.sizeId), validSizeStocks.map(s => Number(s.stock))
+        imageUrls, draft, validSizeStocks.map(s => s.sizeId), validSizeStocks.map(s => Number(s.stock)), productType
       ];
       const res = await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql: combinedQuery, params }) });
       const result = await res.json();
@@ -162,6 +164,10 @@ export default function TambahProdukPage() {
               <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Product Title</label>
               <input type="text" placeholder="MISAL: NIKE RUN" value={name} onChange={e => setName(e.target.value)} className="w-full bg-transparent border-b-2 border-gray-50 focus:border-black py-4 outline-none font-bold text-xl lg:text-3xl uppercase transition-all text-black" />
             </div>
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tipe Produk</label>
+              <ProductTypeSelect value={productType} onChange={setProductType} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-black">
               <div className="space-y-3">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Brand Label</label>
@@ -216,7 +222,7 @@ export default function TambahProdukPage() {
                 <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl border border-gray-100 hover:border-black transition-all text-black">
                   <select value={ss.sizeId} onChange={e => { const n = [...sizeStocks]; n[idx].sizeId = e.target.value; setSizeStocks(n); }} className="flex-1 bg-white border-none rounded-lg px-3 py-3 uppercase outline-none text-[12px] font-bold text-black cursor-pointer">
                     <option value="">SIZE</option>
-                    {sizes.map(s => <option key={s.id} value={s.id}>{s.value}</option>)}
+                    {sortSizes(sizes, productType).map(s => <option key={s.id} value={s.id}>{s.value}</option>)}
                   </select>
                   <input type="number" placeholder="QTY" value={ss.stock} onChange={e => { const n = [...sizeStocks]; n[idx].stock = e.target.value === '' ? '' : Number(e.target.value); setSizeStocks(n); }} className="w-20 bg-white border-none rounded-lg px-3 py-3 text-center outline-none text-[12px] font-bold text-black" />
                   <button onClick={() => setSizeStocks(sizeStocks.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-500 transition-colors px-2"><X size={18}/></button>
@@ -228,33 +234,15 @@ export default function TambahProdukPage() {
         </div>
       </div>
 
-      {/* CLOUD MEDIA MODAL - FIXED GRID & STACKING */}
-      {showMediaModal && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 lg:p-10 z-50">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowMediaModal(false)} />
-          <div className="relative bg-white w-full h-full max-w-6xl rounded-2xl overflow-hidden shadow-2xl flex flex-col font-bold">
-            <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 text-black">
-              <h3 className="font-bold uppercase tracking-widest text-lg lg:text-xl text-black">Media Terupload</h3>
-              <button onClick={() => setShowMediaModal(false)} className="bg-gray-50 p-2.5 rounded-xl hover:bg-red-500 hover:text-white transition-all text-black"><X size={24} /></button>
-            </div>
-            
-            <div className="flex-1 p-6 lg:p-8 overflow-y-auto grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 lg:gap-6 bg-gray-50 text-black auto-rows-max">
-              {existingImages.map((file: any, i) => (
-                <div key={i} onClick={() => imageUrls.includes(file.name) ? setImageUrls(imageUrls.filter(u => u !== file.name)) : setImageUrls([...imageUrls, file.name])} 
-                  className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-4 transition-all bg-white group ${imageUrls.includes(file.name) ? 'border-black scale-95 shadow-xl' : 'border-transparent hover:border-black/10'}`}>
-                  <Image src={file.url} fill className="object-cover" alt="media" unoptimized />
-                  {imageUrls.includes(file.name) && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><CheckCircle2 className="text-white" size={32} /></div>}
-                </div>
-              ))}
-              {existingImages.length === 0 && <div className="col-span-full py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-xs">Library Kosong</div>}
-            </div>
-            
-            <div className="p-6 lg:p-8 border-t bg-white flex justify-end">
-              <button onClick={() => setShowMediaModal(false)} className="bg-black text-white px-12 py-4 rounded-xl font-bold uppercase tracking-widest text-xs active:scale-95 transition-all shadow-xl">Konfirmasi Pilihan</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* LIBRARY GAMBAR */}
+      <MediaLibraryModal
+        open={showMediaModal}
+        files={existingImages}
+        selected={imageUrls}
+        onToggle={(fileName) => setImageUrls(prev => prev.includes(fileName) ? prev.filter(u => u !== fileName) : [...prev, fileName])}
+        onClose={() => setShowMediaModal(false)}
+        title="Media Terupload"
+      />
 
       <style jsx global>{`
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

@@ -8,6 +8,11 @@ import {
   Square, CheckCircle2, ImageIcon, RefreshCw, Upload,
   ChevronLeft, ChevronRight, CheckSquare, Zap
 } from 'lucide-react'
+import MediaLibraryModal from '@/components/admin/MediaLibraryModal'
+import { uploadImage } from '@/lib/upload'
+import Pagination from '@/components/shop/Pagination'
+import ProductTypeSelect from '@/components/admin/ProductTypeSelect'
+import { PRODUCT_TYPES, sortSizes } from '@/lib/product-types'
 
 // --- DEFINISI INTERFACE ---
 interface Size { id: string; value: string }
@@ -24,6 +29,7 @@ interface Product {
   id: string
   name: string
   slug: string
+  type?: string
   description: string
   price_regular: number
   price_promo: number | null
@@ -44,6 +50,7 @@ export default function InventoryHnMStore() {
   const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterBrand, setFilterBrand] = useState('all')
+  const [filterType, setFilterType] = useState('all')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [existingImages, setExistingImages] = useState<any[]>([])
   const [showMediaModal, setShowMediaModal] = useState(false)
@@ -62,7 +69,7 @@ export default function InventoryHnMStore() {
     try {
       setLoading(true)
       const productQuery = `
-        SELECT p.id, p.name, p.slug, p.description, p.price_regular, p.price_promo, p.images, p."brandId", p."modelId", p."createdAt", b.name as "brandName", m.name as "modelName",
+        SELECT p.id, p.name, p.slug, p.type, p.description, p.price_regular, p.price_promo, p.images, p."brandId", p."modelId", p."createdAt", b.name as "brandName", m.name as "modelName",
         (SELECT json_agg(json_build_object('id', pss.id, 'stock', pss.stock, 'sizeId', pss."sizeId", 'Size', json_build_object('value', s.value)))
          FROM public."ProductSizeStock" pss JOIN public."Size" s ON s.id = pss."sizeId" WHERE pss."productId" = p.id) as "vps_stocks"
         FROM public."Product" p
@@ -138,7 +145,8 @@ export default function InventoryHnMStore() {
     return products
       .filter(p => (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()))
       .filter(p => filterBrand === 'all' || p.brand_id === filterBrand)
-  }, [products, searchTerm, filterBrand])
+      .filter(p => filterType === 'all' || (p.type || 'sepatu') === filterType)
+  }, [products, searchTerm, filterBrand, filterType])
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
   const displayProducts = useMemo(() => {
@@ -179,16 +187,9 @@ export default function InventoryHnMStore() {
     if (!e.target.files || !selectedProduct) return
     setUploading(true)
     try {
-      const file = e.target.files[0]
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (data.url) {
-        const fileName = data.url.split('/').pop() || ""
-        setSelectedProduct({ ...selectedProduct, images: [...(selectedProduct.images || []), fileName] })
-      }
-    } catch (err) { alert("Upload gagal!") } finally { setUploading(false) }
+      const fileName = await uploadImage(e.target.files[0], selectedProduct.name)
+      setSelectedProduct({ ...selectedProduct, images: [...(selectedProduct.images || []), fileName] })
+    } catch (err: any) { alert(err.message || "Upload gagal!") } finally { setUploading(false) }
   }
 
   async function handleFullUpdate(e: React.FormEvent) {
@@ -197,8 +198,8 @@ export default function InventoryHnMStore() {
       await fetch('/api/vps-db', {
         method: 'POST',
         body: JSON.stringify({
-          sql: `UPDATE public."Product" SET name = $1, price_regular = $2, price_promo = $3, description = $4, "brandId" = $5, "modelId" = $6, images = $7 WHERE id = $8`,
-          params: [selectedProduct.name, selectedProduct.price_regular, selectedProduct.price_promo, selectedProduct.description, selectedProduct.brand_id, selectedProduct.model_id, selectedProduct.images, selectedProduct.id]
+          sql: `UPDATE public."Product" SET name = $1, price_regular = $2, price_promo = $3, description = $4, "brandId" = $5, "modelId" = $6, images = $7, type = $9 WHERE id = $8`,
+          params: [selectedProduct.name, selectedProduct.price_regular, selectedProduct.price_promo, selectedProduct.description, selectedProduct.brand_id, selectedProduct.model_id, selectedProduct.images, selectedProduct.id, selectedProduct.type || 'sepatu']
         })
       });
       await fetch('/api/vps-db', { method: 'POST', body: JSON.stringify({ sql: `DELETE FROM public."ProductSizeStock" WHERE "productId" = $1`, params: [selectedProduct.id] }) });
@@ -239,12 +240,16 @@ export default function InventoryHnMStore() {
         <div className="flex flex-col md:flex-row gap-4 items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 font-bold">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input type="text" placeholder="Cari item di gudang..." className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl outline-none text-xs font-bold focus:ring-1 focus:ring-black transition-all text-black" onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="Cari item di gudang..." className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl outline-none text-xs font-bold focus:ring-1 focus:ring-black transition-all text-black" onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1) }} />
           </div>
           <div className="flex gap-2 w-full md:w-auto">
-            <select className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold uppercase text-black outline-none" onChange={(e) => setFilterBrand(e.target.value)}>
+            <select className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold uppercase text-black outline-none" onChange={(e) => { setFilterBrand(e.target.value); setCurrentPage(1) }}>
               <option value="all">Semua Brand</option>
               {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <select className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold uppercase text-black outline-none" onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1) }}>
+              <option value="all">Semua Tipe</option>
+              {PRODUCT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <button onClick={fetchInitialData} className="p-3 bg-black text-white rounded-xl active:scale-95 transition-all shadow-lg"><RefreshCw size={16} /></button>
           </div>
@@ -350,24 +355,10 @@ export default function InventoryHnMStore() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-10 text-black">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest shrink-0">
             Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} items
           </p>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-3 border border-gray-200 rounded-xl hover:bg-black hover:text-white disabled:opacity-30 transition-all active:scale-90">
-              <ChevronLeft size={16} />
-            </button>
-            <div className="flex gap-2 overflow-x-auto max-w-50 lg:max-w-none">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button key={i} onClick={() => setCurrentPage(i + 1)} className={`min-w-10 h-10 rounded-xl text-xs font-bold transition-all ${currentPage === i + 1 ? 'bg-black text-white' : 'bg-gray-50 text-black hover:bg-gray-200'}`}>
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-3 border border-gray-200 rounded-xl hover:bg-black hover:text-white disabled:opacity-30 transition-all active:scale-90">
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onChange={setCurrentPage} className="" />
         </div>
       </div>
 
@@ -439,6 +430,11 @@ export default function InventoryHnMStore() {
                   <input type="text" value={selectedProduct.name} onChange={(e) => setSelectedProduct({...selectedProduct, name: e.target.value})} className="w-full outline-none font-bold text-xl uppercase tracking-tighter bg-transparent text-black" />
                 </div>
                 
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Tipe Produk</label>
+                  <ProductTypeSelect value={selectedProduct.type || 'sepatu'} onChange={(v) => setSelectedProduct({...selectedProduct, type: v})} />
+                </div>
+
                 {/* DESKRIPSI PRODUK */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Deskripsi Produk</label>
@@ -456,7 +452,7 @@ export default function InventoryHnMStore() {
                     {selectedProduct.ProductSizeStock?.map((s, index) => (
                       <div key={index} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-transparent hover:border-black transition-all text-black">
                         <select value={s.sizeId} onChange={(e) => handleUpdateStockValue(index, 'sizeId', e.target.value)} className="flex-1 bg-white rounded-lg p-2.5 text-xs font-bold uppercase outline-none appearance-none cursor-pointer shadow-sm text-black border-none">
-                          {sizes.map(sz => <option key={sz.id} value={sz.id}>SZ {sz.value}</option>)}
+                          {sortSizes(sizes, selectedProduct.type).map(sz => <option key={sz.id} value={sz.id}>SZ {sz.value}</option>)}
                         </select>
                         <input type="number" value={s.stock} onChange={(e) => handleUpdateStockValue(index, 'stock', e.target.value)} className="w-20 bg-white rounded-lg p-2.5 text-xs font-bold text-center outline-none shadow-sm text-black border-none" />
                         <button type="button" onClick={() => setSelectedProduct({...selectedProduct, ProductSizeStock: selectedProduct.ProductSizeStock.filter((_, i) => i !== index)})} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
@@ -488,97 +484,21 @@ export default function InventoryHnMStore() {
         </div>
       )}
 
-{showMediaModal && (
-  <div className="fixed inset-0 z-100 flex items-center justify-center p-4 lg:p-10 text-black">
-    {/* Overlay */}
-    <div 
-      className="absolute inset-0 bg-black/80 backdrop-blur-md" 
-      onClick={() => setShowMediaModal(false)} 
-    />
-
-    {/* Modal Container - Fixed rounded-4xl */}
-    <div className="relative bg-white w-full max-w-6xl rounded-2xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl">
-      
-      {/* Header */}
-      <div className="p-6 lg:p-8 border-b border-gray-100 flex justify-between items-center bg-white z-20">
-        <div className="space-y-1">
-          <h3 className="font-bold uppercase tracking-tighter text-2xl text-black leading-none">Cloud Library</h3>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Aset produk HnM Store</p>
-        </div>
-        <button 
-          onClick={() => setShowMediaModal(false)} 
-          className="bg-gray-100 p-3 rounded-2xl text-black hover:bg-red-500 hover:text-white transition-all active:scale-90"
-        >
-          <X size={20}/>
-        </button>
-      </div>
-
-      {/* Grid Content */}
-      <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50">
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 lg:gap-6">
-          {existingImages.map((file: any, i) => {
-            const isSelected = selectedProduct?.images.includes(file.name);
-            
-            return (
-              <div 
-                key={i} 
-                className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-4 transition-all duration-300 group shadow-sm ${
-                  isSelected ? 'border-black scale-[0.96] shadow-xl' : 'border-white hover:border-gray-200'
-                }`}
-                onClick={() => {
-                  if (!selectedProduct) return;
-                  const has = selectedProduct.images.includes(file.name);
-                  setSelectedProduct({
-                    ...selectedProduct, 
-                    images: has 
-                      ? selectedProduct.images.filter(u => u !== file.name) 
-                      : [...selectedProduct.images, file.name]
-                  });
-                }}
-              >
-                <div className="absolute inset-0">
-                  <Image 
-                    src={file.url || `/api/media/view?bucket=ProductImage&name=${file.name}`} 
-                    fill 
-                    sizes="(max-width: 768px) 50vw, 20vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-110" 
-                    alt="HnM" 
-                    unoptimized 
-                  />
-                </div>
-                
-                {/* Overlay Checkmark - FIXED ICON NAME */}
-                {isSelected && (
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center animate-in fade-in zoom-in duration-300">
-                    <div className="bg-white text-black rounded-full p-2 shadow-2xl border-2 border-white">
-                      <CheckCircle2 className="font-bold" size={24} strokeWidth={4} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-6 lg:p-8 bg-white border-t border-gray-100 flex justify-between items-center z-20">
-        <div className="flex flex-col font-bold">
-          <p className="text-xs text-gray-400 uppercase tracking-widest leading-none mb-1">Pilihan</p>
-          <p className="text-sm text-black uppercase leading-none font-bold">
-            {selectedProduct?.images.length || 0} File terpilih
-          </p>
-        </div>
-        <button 
-          onClick={() => setShowMediaModal(false)} 
-          className="bg-black text-white px-10 py-4 lg:py-5 rounded-2xl font-bold text-xs lg:text-sm uppercase tracking-widest shadow-xl hover:bg-zinc-800 transition-all active:scale-95"
-        >
-          Selesai
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+<MediaLibraryModal
+        open={showMediaModal}
+        files={existingImages}
+        selected={selectedProduct?.images ?? []}
+        onToggle={(fileName) => {
+          if (!selectedProduct) return
+          const has = selectedProduct.images.includes(fileName)
+          setSelectedProduct({
+            ...selectedProduct,
+            images: has ? selectedProduct.images.filter(u => u !== fileName) : [...selectedProduct.images, fileName],
+          })
+        }}
+        onClose={() => setShowMediaModal(false)}
+        title="Cloud Library"
+      />
     </div>
   )
 }

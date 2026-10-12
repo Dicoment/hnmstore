@@ -1,14 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, User, Smartphone, Calendar, CheckCircle2, Loader2, ShoppingBag } from 'lucide-react'
+import { CheckCircle2, Loader2, ShoppingBag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+
+// Helper: jalankan SQL dan lempar error kalau database menolak
+const runSql = async (sql: string, params: any[] = []) => {
+  const res = await fetch('/api/vps-db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sql, params })
+  })
+  const result = await res.json()
+  if (!res.ok || result.error) throw new Error(result.error || 'Query gagal')
+  return result.data as any[]
+}
 
 export default function CheckoutPage() {
   const router = useRouter()
   const [cart, setCart] = useState<any[]>([])
   const [customerName, setCustomerName] = useState('')
-  const [whatsapp, setWhatsapp] = useState('') 
+  const [whatsapp, setWhatsapp] = useState('')
   const [discount, setDiscount] = useState(0)
   const [paymentMethod, setPaymentMethod] = useState('')
   const [isDebt, setIsDebt] = useState(false)
@@ -31,82 +43,72 @@ export default function CheckoutPage() {
 
     setIsProcessing(true)
     try {
-      // Pastikan user_id yang diambil adalah UUID Profile
-      const adminId = localStorage.getItem('user_id') 
-      
+      // Ambil identitas kasir dari token login (server), bukan localStorage
+      const meRes = await fetch('/api/me')
+      const me = await meRes.json()
+      const adminId: string | null = me?.id ?? null
+      if (!meRes.ok || !adminId) {
+        alert("Sesi login tidak valid, silakan login ulang.")
+        setIsProcessing(false)
+        return
+      }
+
       for (const item of cart) {
         // 1. Ambil stok lama untuk audit log
-        const oldStockRes = await fetch('/api/vps-db', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            sql: `SELECT stock FROM public."ProductSizeStock" WHERE id = $1`, 
-            params: [item.stockId] 
-          })
-        });
-        const oldStockData = await oldStockRes.json();
-        const oldStock = oldStockData.data?.[0]?.stock || 0;
+        const oldRows = await runSql(
+          `SELECT stock FROM public."ProductSizeStock" WHERE id = $1`,
+          [item.stockId]
+        )
+        const oldStock = oldRows?.[0]?.stock || 0
 
         // 2. Potong Stok
-        await fetch('/api/vps-db', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sql: `UPDATE public."ProductSizeStock" SET stock = stock - $1 WHERE id = $2`,
-            params: [item.quantity, item.stockId]
-          })
-        })
+        await runSql(
+          `UPDATE public."ProductSizeStock" SET stock = stock - $1 WHERE id = $2`,
+          [item.quantity, item.stockId]
+        )
 
         // 3. Catat Mutasi (Gunakan 'TERJUAL' agar warna di UI sesuai)
-        await fetch('/api/vps-db', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sql: `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by, created_at) 
-                  VALUES ($1, $2, $3, $4, 'TERJUAL', $5, $6, NOW())`,
-            params: [
-              item.name, 
-              item.size, 
-              oldStock, 
-              oldStock - item.quantity, 
-              `Penjualan ke ${customerName}`, 
-              adminId
-            ]
-          })
-        })
+        await runSql(
+          `INSERT INTO public."StockLog" (product_name, size_value, old_stock, new_stock, type, notes, created_by, created_at) 
+           VALUES ($1, $2, $3, $4, 'TERJUAL', $5, $6, NOW())`,
+          [
+            item.name,
+            item.size,
+            oldStock,
+            oldStock - item.quantity,
+            `Penjualan ke ${customerName}`,
+            adminId
+          ]
+        )
       }
 
       // 4. Simpan Transaksi Utama
-      await fetch('/api/vps-db', {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sql: `INSERT INTO public."Transactions" (customer, whatsapp, subtotal, discount, total, items, items_count, created_by, status, payment_status, due_date, payment_method) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'SUCCESS', $9, $10, $11)`,
-          params: [
-            customerName, 
-            whatsapp, 
-            subtotal, 
-            discount, 
-            total, 
-            JSON.stringify(cart), 
-            cart.length, 
-            adminId, 
-            isDebt ? 'HUTANG' : 'LUNAS', 
-            dueDate || null, 
-            isDebt ? 'HUTANG' : paymentMethod
-          ]
-        })
-      })
+      await runSql(
+        `INSERT INTO public."Transactions" (customer, whatsapp, subtotal, discount, total, items, items_count, created_by, status, payment_status, due_date, payment_method) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'SUCCESS', $9, $10, $11)`,
+        [
+          customerName,
+          whatsapp,
+          subtotal,
+          discount,
+          total,
+          JSON.stringify(cart),
+          cart.length,
+          adminId,
+          isDebt ? 'HUTANG' : 'LUNAS',
+          dueDate || null,
+          isDebt ? 'HUTANG' : paymentMethod
+        ]
+      )
 
       alert("Transaksi Sukses & Mutasi Tercatat!")
       localStorage.removeItem('hnm_temp_cart')
       router.push(isDebt ? '/admin/pos/hutang' : '/admin/pos/riwayat')
-    } catch (e) { 
+    } catch (e: any) {
       console.error(e)
-      alert("Checkout Gagal") 
-    } finally { 
-      setIsProcessing(false) 
+      alert("Checkout Gagal: " + (e?.message || ''))
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -115,7 +117,7 @@ export default function CheckoutPage() {
       <div className="max-w-7xl mx-auto p-5 lg:p-12 pb-32 lg:pb-12">
 
         <div className="grid grid-cols-1 lg:grid-cols-12 text-center gap-10">
-          <h1 className='lg:text-4xl text-3xl font-bold text-gray-800'>Halaman Checkout</h1>
+          <h1 className='lg:col-span-12 lg:text-4xl text-3xl font-bold text-gray-800'>Halaman Checkout</h1>
           {/* FORM INPUT */}
           <div className="lg:col-span-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -187,8 +189,8 @@ export default function CheckoutPage() {
                 <span className="text-xs font-bold uppercase">Total Akhir</span>
                 <span className="text-3xl font-bold tracking-tighter">RP {total.toLocaleString()}</span>
               </div>
-              <button 
-                disabled={isProcessing} onClick={handleFinish} 
+              <button
+                disabled={isProcessing} onClick={handleFinish}
                 className={`w-full py-6 rounded-3xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 shadow-xl ${isDebt ? 'bg-red-600 text-white shadow-red-100' : 'bg-black text-white'}`}
               >
                 {isProcessing ? <Loader2 className="animate-spin mx-auto" size={20}/> : (isDebt ? 'SIMPAN PIUTANG' : 'SELESAIKAN ORDER')}
@@ -205,8 +207,8 @@ export default function CheckoutPage() {
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Akhir</span>
             <span className="text-lg font-bold tracking-tighter">RP {total.toLocaleString()}</span>
           </div>
-          <button 
-            disabled={isProcessing} onClick={handleFinish} 
+          <button
+            disabled={isProcessing} onClick={handleFinish}
             className={`flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 ${isDebt ? 'bg-red-600 text-white' : 'bg-black text-white'}`}
           >
             {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <CheckCircle2 size={16}/>}
